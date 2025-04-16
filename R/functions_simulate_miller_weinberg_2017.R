@@ -342,8 +342,8 @@ compute_delta_rt <-
 compute_mu_irt <- 
   function(
     x_rt,
-    price_rt,
     d_rt,
+    price_rt,
     num_consumer,
     pi_alpha,
     pi_beta
@@ -487,8 +487,8 @@ compute_share_irt_wrapper <-
     mu_irt <- 
       compute_mu_irt(
         x_rt = x_rt,
-        price_rt = price_rt,
         d_rt = d_rt,
+        price_rt = price_rt,
         num_consumer = num_consumer,
         pi_alpha = pi_alpha,
         pi_beta = pi_beta
@@ -568,11 +568,11 @@ compute_share_rt_wrapper <-
     s_irt <- 
       compute_share_irt_wrapper(
         x_rt = x_rt,
+        d_rt = d_rt,
         price_rt = price_rt,
         xi_rt = xi_rt,
         sigma_d = sigma_d,
         tau_d_t = tau_d_t,
-        d_rt = d_rt,
         num_consumer = num_consumer,
         alpha = alpha,
         beta = beta,
@@ -802,11 +802,11 @@ update_price_rt <-
     s_irt <- 
       compute_share_irt_wrapper(
         x_rt = x_rt,
+        d_rt = d_rt,
         price_rt = price_rt,
         xi_rt = xi_rt,
         sigma_d = sigma_d,
         tau_d_t = tau_d_t,
-        d_rt = d_rt,
         num_consumer = num_consumer,
         alpha = alpha,
         beta = beta,
@@ -912,11 +912,11 @@ solve_endogenous_rt <-
     share_rt <-
       compute_share_rt_wrapper(
         x_rt = x_rt,
+        d_rt = d_rt,
         price_rt = price_rt,
         xi_rt = xi_rt,
         sigma_d = sigma_d,
         tau_d_t = tau_d_t,
-        d_rt = d_rt,
         num_consumer = num_consumer,
         alpha = alpha,
         beta = beta,

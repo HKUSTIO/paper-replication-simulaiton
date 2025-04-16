@@ -83,8 +83,8 @@ delta_rt
 mu_irt <- 
   compute_mu_irt(
     x_rt = equilibrium$exogenous$x[[t]][[r]],
-    price_rt = equilibrium$endogenous$p[[t]][[r]],
     d_rt = equilibrium$exogenous$d[[t]][[r]],
+    price_rt = equilibrium$endogenous$p[[t]][[r]],
     num_consumer = constant$num_consumer,
     pi_alpha = equilibrium$parameter$demand$pi_alpha,
     pi_beta = equilibrium$parameter$demand$pi_beta
@@ -152,11 +152,11 @@ share_rt
 s_irt_wrapped <- 
   compute_share_irt_wrapper(
     x_rt = equilibrium$exogenous$x[[t]][[r]],
+    d_rt = equilibrium$exogenous$d[[t]][[r]],
     price_rt = equilibrium$endogenous$p[[t]][[r]],
     xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
     sigma_d = equilibrium$shock$demand$sigma_d,
     tau_d_t = equilibrium$shock$demand$tau_d[[t]],
-    d_rt = equilibrium$exogenous$d[[t]][[r]],
     num_consumer = constant$num_consumer,
     alpha = equilibrium$parameter$demand$alpha,
     beta = equilibrium$parameter$demand$beta,
@@ -173,11 +173,11 @@ s_irt_wrapped
 share_rt <-
   compute_share_rt_wrapper(
     x_rt = equilibrium$exogenous$x[[t]][[r]],
+    d_rt = equilibrium$exogenous$d[[t]][[r]],
     price_rt = equilibrium$endogenous$p[[t]][[r]],
     xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
     sigma_d = equilibrium$shock$demand$sigma_d,
     tau_d_t = equilibrium$shock$demand$tau_d[[t]],
-    d_rt = equilibrium$exogenous$d[[t]][[r]],
     num_consumer = constant$num_consumer,
     alpha = equilibrium$parameter$demand$alpha,
     beta = equilibrium$parameter$demand$beta,
@@ -229,7 +229,7 @@ p_rt_new <-
     x_rt = equilibrium$exogenous$x[[t]][[r]],
     w_rt = equilibrium$exogenous$w[[t]][[r]],
     d_rt = equilibrium$exogenous$d[[t]][[r]],
-    owner_rt = equilibrium$exogenous$owner[[1]][[1]],
+    owner_rt = equilibrium$exogenous$owner[[t]][[r]],
     sigma_s = equilibrium$shock$cost$sigma_s,
     tau_s_t = equilibrium$shock$cost$tau_s[[t]],
     mu_s_r = equilibrium$shock$cost$mu_s[[t]],
@@ -322,7 +322,9 @@ saveRDS(
   file = "output/simulate/equilibrium.rds"
 )
 equilibrium <-
-  readRDS(file = "output/simulate/equilibrium.rds")
+  readRDS(
+    file = "output/simulate/equilibrium.rds"
+  )
 
 equilibrium$endogenous$share[[1]][[1]]
 equilibrium$endogenous$price[[1]][[1]]
