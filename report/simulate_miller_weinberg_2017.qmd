@@ -198,7 +198,7 @@ $$
 
 ```{r}
 share_df <-
-  compute_market_share_df(
+  compute_share_df(
     u_df = u_df
   )
 share_df
@@ -339,7 +339,7 @@ u_df <- compute_share_df(
   rho = parameter$rho
 )
 
-s_df <- compute_market_share_df(
+s_df <- compute_share_df(
   u_df = u_df
 )
 

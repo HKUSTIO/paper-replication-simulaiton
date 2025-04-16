@@ -141,11 +141,11 @@ findGlobals(
 s_irt
 
 s_rt <- 
-  compute_market_share_rt(
+  compute_share_rt(
     share_irt = s_irt
   )
 findGlobals(
-  compute_market_share_rt
+  compute_share_rt
 )
 s_rt
 
@@ -170,14 +170,26 @@ findGlobals(
 )
 s_irt_wrapped
 
-s_rt_wrapped <- 
-  compute_market_share_rt(
-    share_irt = s_irt_wrapped
-  )
+s_rt <-
+  compute_share_rt_wrapper(
+    x_rt = equilibrium$exogenous$x[[t]][[r]],
+    p_rt = equilibrium$endogenous$p[[t]][[r]],
+    xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
+    sigma_d = equilibrium$shock$demand$sigma_d,
+    tau_d_t = equilibrium$shock$demand$tau_d[[t]],
+    d_rt = equilibrium$exogenous$d[[t]][[r]],
+    num_consumer = constant$num_consumer,
+    alpha = equilibrium$parameter$demand$alpha,
+    beta = equilibrium$parameter$demand$beta,
+    intercept = equilibrium$parameter$demand$intercept,
+    pi_alpha = equilibrium$parameter$demand$pi_alpha,
+    pi_beta = equilibrium$parameter$demand$pi_beta,
+    rho = equilibrium$parameter$demand$rho
+  ) 
 findGlobals(
-  compute_market_share_rt
+  compute_share_rt_wrapper
 )
-s_rt_wrapped
+s_rt
 
 jacobian_rt <- 
   compute_jacobian_rt(

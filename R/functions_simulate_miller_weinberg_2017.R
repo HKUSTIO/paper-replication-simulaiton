@@ -536,16 +536,56 @@ compute_share_irt_wrapper <-
     return(s_irt)
   }
 
-compute_market_share_rt <- 
+compute_share_rt <- 
   function(
     share_irt
   ) {
     share_rt <- 
       rowMeans(
         share_irt
-      )  # J x 1
+      ) %>%
+      as.matrix()
 
     return(share_rt)
+  }
+
+compute_share_rt_wrapper <-
+  function(
+    x_rt,
+    p_rt,
+    xi_rt,
+    sigma_d,
+    tau_d_t,
+    d_rt,
+    num_consumer,
+    alpha,
+    beta,
+    intercept,
+    pi_alpha,
+    pi_beta,
+    rho
+  ) {
+    s_irt <- 
+      compute_share_irt_wrapper(
+        x_rt = x_rt,
+        p_rt = p_rt,
+        xi_rt = xi_rt,
+        sigma_d = sigma_d,
+        tau_d_t = tau_d_t,
+        d_rt = d_rt,
+        num_consumer = num_consumer,
+        alpha = alpha,
+        beta = beta,
+        intercept = intercept,
+        pi_alpha = pi_alpha,
+        pi_beta = pi_beta,
+        rho = rho
+      )
+    s_rt <- 
+      compute_share_rt(
+        share_irt = s_irt
+      )
+    return(s_rt)
   }
 
 adjust_owner_rt_with_kappa <- 
@@ -784,7 +824,7 @@ update_price_rt <-
         rho = rho
       )
     s_rt <-
-      compute_market_share_rt(
+      compute_share_rt(
         share_irt = s_irt
       )
     price_rt <-
@@ -842,7 +882,7 @@ update_endogenous <-
               )
 
             share_rt <- 
-              compute_market_share_rt(
+              compute_share_rt(
                 share_irt = s_irt
               )
     
@@ -900,7 +940,7 @@ update_endogenous <-
                 rho = equilibrium$parameter$demand$rho
               )
             s_rt <-
-              compute_market_share_rt(
+              compute_share_rt(
                 share_irt = s_irt
               )
             price_rt <-
