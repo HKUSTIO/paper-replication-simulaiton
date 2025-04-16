@@ -973,6 +973,93 @@ update_endogenous <-
     )
   }
 
+solve_endogenous_rt <-
+  function(
+    x_rt,
+    w_rt,
+    d_rt,
+    owner_rt,
+    price_rt,
+    xi_rt,
+    sigma_d,
+    tau_d_t,
+    sigma_s,
+    tau_s_t,
+    mu_s_r,
+    eta_rt,
+    num_consumer,
+    alpha,
+    beta,
+    intercept,
+    pi_alpha,
+    pi_beta,
+    rho,
+    gamma
+  ) {
+    fn <-
+      function(
+        price_rt 
+      ) {
+        p_rt_new <-
+          update_price_rt(
+            x_rt = x_rt,
+            w_rt = w_rt,
+            d_rt = d_rt,
+            owner_rt = owner_rt,
+            price_rt = price_rt,
+            xi_rt = xi_rt,
+            sigma_d = sigma_d,
+            tau_d_t = tau_d_t,
+            sigma_s = sigma_s,
+            tau_s_t = tau_s_t,
+            mu_s_r = mu_s_r,
+            eta_rt = eta_rt,
+            num_consumer = num_consumer,
+            alpha = alpha,
+            beta = beta,
+            intercept = intercept,
+            pi_alpha = pi_alpha,
+            pi_beta = pi_beta,
+            rho = rho,
+            gamma = gamma
+          )
+        return(
+          price_rt - p_rt_new
+        )
+      }
+    solution <-
+      nleqslv::nleqslv(
+        x = price_rt,
+        fn = fn
+      )
+    price_rt <- 
+      solution$x %>%
+      as.matrix()
+    share_rt <-
+      compute_share_rt_wrapper(
+        x_rt = x_rt,
+        price_rt = price_rt,
+        xi_rt = xi_rt,
+        sigma_d = sigma_d,
+        tau_d_t = tau_d_t,
+        d_rt = d_rt,
+        num_consumer = num_consumer,
+        alpha = alpha,
+        beta = beta,
+        intercept = intercept,
+        pi_alpha = pi_alpha,
+        pi_beta = pi_beta,
+        rho = rho
+      )
+    return(
+      list(
+        share_rt = share_rt,
+        price_rt = price_rt
+      )
+    )
+  }
+
+
 set_equilibrium <- 
   function(
     constant,

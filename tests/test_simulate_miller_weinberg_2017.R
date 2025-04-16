@@ -288,94 +288,34 @@ findGlobals(set_endogenous)
 
 # set equilibrium --------------------------------------------------------------
 
-solve_endogenous_rt <-
-  function(
-    x_rt,
-    w_rt,
-    d_rt,
-    owner_rt,
-    price_rt,
-    xi_rt,
-    sigma_d,
-    tau_d_t,
-    sigma_s,
-    tau_s_t,
-    mu_s_r,
-    eta_rt,
-    num_consumer,
-    alpha,
-    beta,
-    intercept,
-    pi_alpha,
-    pi_beta,
-    rho,
-    gamma
-  ) {
-    fn <-
-      function(
-        price_rt 
-      ) {
-        p_rt_new <-
-          update_price_rt(
-            x_rt = x_rt,
-            w_rt = w_rt,
-            d_rt = d_rt,
-            owner_rt = owner_rt,
-            price_rt = price_rt,
-            xi_rt = xi_rt,
-            sigma_d = sigma_d,
-            tau_d_t = tau_d_t,
-            sigma_s = sigma_s,
-            tau_s_t = tau_s_t,
-            mu_s_r = mu_s_r,
-            eta_rt = eta_rt,
-            num_consumer = num_consumer,
-            alpha = alpha,
-            beta = beta,
-            intercept = intercept,
-            pi_alpha = pi_alpha,
-            pi_beta = pi_beta,
-            rho = rho,
-            gamma = gamma
-          )
-        return(
-          price_rt - p_rt_new
-        )
-      }
-    solution <-
-      nleqslv::nleqslv(
-        x = price_rt,
-        fn = fn,
-        lower = 0,
-        method = "L-BFGS-B"
-      )
-    price_rt <- 
-      solution$x %>%
-      as.matrix()
-    share_rt <-
-      compute_share_rt_wrapper(
-        x_rt = x_rt,
-        price_rt = price_rt,
-        xi_rt = xi_rt,
-        sigma_d = sigma_d,
-        tau_d_t = tau_d_t,
-        d_rt = d_rt,
-        num_consumer = num_consumer,
-        alpha = alpha,
-        beta = beta,
-        intercept = intercept,
-        pi_alpha = pi_alpha,
-        pi_beta = pi_beta,
-        rho = rho,
-        gamma = gamma
-      )
-    return(
-      list(
-        share_rt = share_rt,
-        price_rt = price_rt
-      )
-    )
-  }
+endogenous_rt <- 
+  solve_endogenous_rt(
+    x_rt = equilibrium$exogenous$x[[t]][[r]],
+    w_rt = equilibrium$exogenous$w[[t]][[r]],
+    d_rt = equilibrium$exogenous$d[[t]][[r]],
+    owner_rt = equilibrium$exogenous$owner[[t]][[r]],
+    price_rt = equilibrium$endogenous$p[[t]][[r]],
+    xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
+    sigma_d = equilibrium$shock$demand$sigma_d,
+    tau_d_t = equilibrium$shock$demand$tau_d[[t]],
+    sigma_s = equilibrium$shock$cost$sigma_s,
+    tau_s_t = equilibrium$shock$cost$tau_s[[t]],
+    mu_s_r = equilibrium$shock$cost$mu_s[[t]],
+    eta_rt = equilibrium$shock$cost$eta[[t]][[r]],
+    num_consumer = constant$num_consumer,
+    alpha = equilibrium$parameter$demand$alpha,
+    beta = equilibrium$parameter$demand$beta,
+    intercept = equilibrium$parameter$demand$intercept,
+    pi_alpha = equilibrium$parameter$demand$pi_alpha,
+    pi_beta = equilibrium$parameter$demand$pi_beta,
+    rho = equilibrium$parameter$demand$rho,
+    gamma = equilibrium$parameter$cost$gamma
+  ) 
+findGlobals(
+  solve_endogenous_rt
+)
+endogenous_rt$share[[t]][[r]]
+endogenous_rt$price[[t]][[r]]
 
 equilibrium <- 
   solve_equilibrium(
