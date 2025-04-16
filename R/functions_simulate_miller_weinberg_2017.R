@@ -738,7 +738,26 @@ set_endogenous <-
 
 update_price_rt <-
   function(
-
+    x_rt,
+    w_rt,
+    d_rt,
+    owner_rt,
+    p_rt,
+    xi_rt,
+    sigma_d,
+    tau_d_t,
+    sigma_s,
+    tau_s_t,
+    mu_s_r,
+    eta_rt,
+    num_consumer,
+    alpha,
+    beta,
+    intercept,
+    pi_alpha,
+    pi_beta,
+    rho,
+    gamma
   ) {
     s_ijrt <- 
       compute_share_ijrt_wrapper(
@@ -748,21 +767,21 @@ update_price_rt <-
         sigma_d = sigma_d,
         tau_d_t = tau_d_t,
         d_rt = d_rt,
-        num_consumer = equilibrium$constant$num_consumer,
-        alpha = equilibrium$parameter$demand$alpha,
-        beta = equilibrium$parameter$demand$beta,
-        intercept = equilibrium$parameter$demand$intercept,
-        pi_alpha = equilibrium$parameter$demand$pi_alpha,
-        pi_beta = equilibrium$parameter$demand$pi_beta,
-        rho = equilibrium$parameter$demand$rho
+        num_consumer = num_consumer,
+        alpha = alpha,
+        beta = beta,
+        intercept = intercept,
+        pi_alpha = pi_alpha,
+        pi_beta = pi_beta,
+        rho = rho
       )
     jacobian_rt <-
       compute_jacobian_rt(
         s_ijrt = s_ijrt,
-        d_rt = equilibrium$exogenous$d[[t]][[r]],
-        alpha = equilibrium$parameter$demand$alpha,
-        pi_alpha = equilibrium$parameter$demand$pi_alpha,
-        rho = equilibrium$parameter$demand$rho
+        d_rt = d_rt,
+        alpha = alpha,
+        pi_alpha = pi_alpha,
+        rho = rho
       )
     s_jrt <-
       compute_market_share_jrt(
@@ -770,20 +789,20 @@ update_price_rt <-
       )
     price_rt <-
       add_markup_rt(
-        x_rt = equilibrium$exogenous$x[[t]][[r]],
-        w_rt = equilibrium$exogenous$w[[t]][[r]],
-        d_rt = equilibrium$exogenous$d[[t]][[r]],
+        x_rt = x_rt,
+        w_rt = w_rt,
+        d_rt = d_rt,
         owner_rt = owner_rt,
-        sigma_s = equilibrium$shock$cost$sigma_s,
-        tau_s_t = equilibrium$shock$cost$tau_s[[t]],
-        mu_s_r = equilibrium$shock$cost$mu_s[[r]],
-        eta_rt = equilibrium$shock$cost$eta[[t]][[r]],
+        sigma_s = sigma_s,
+        tau_s_t = tau_s_t,
+        mu_s_r = mu_s_r,
+        eta_rt = eta_rt,
         s_jrt = s_jrt,
         jacobian_rt = jacobian_rt,
-        alpha = equilibrium$parameter$demand$alpha,
-        pi_alpha = equilibrium$parameter$demand$pi_alpha,
-        rho = equilibrium$parameter$demand$rho,
-        gamma = equilibrium$parameter$cost$gamma
+        alpha = alpha,
+        pi_alpha = pi_alpha,
+        rho = rho,
+        gamma = gamma
       )
     return(price_rt)
   }

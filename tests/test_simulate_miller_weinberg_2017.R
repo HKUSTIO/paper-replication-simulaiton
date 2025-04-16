@@ -234,6 +234,34 @@ findGlobals(
 )
 p_rt_new
 
+p_rt_new <-
+  update_price_rt(
+    x_rt = equilibrium$exogenous$x[[t]][[r]],
+    w_rt = equilibrium$exogenous$w[[t]][[r]],
+    d_rt = equilibrium$exogenous$d[[t]][[r]],
+    owner_rt = equilibrium$exogenous$owner[[t]][[r]],
+    p_rt = equilibrium$endogenous$p[[t]][[r]],
+    xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
+    sigma_d = equilibrium$shock$demand$sigma_d,
+    tau_d_t = equilibrium$shock$demand$tau_d[[t]],
+    sigma_s = equilibrium$shock$cost$sigma_s,
+    tau_s_t = equilibrium$shock$cost$tau_s[[t]],
+    mu_s_r = equilibrium$shock$cost$mu_s[[t]],
+    eta_rt = equilibrium$shock$cost$eta[[t]][[r]],
+    num_consumer = constant$num_consumer,
+    alpha = equilibrium$parameter$demand$alpha,
+    beta = equilibrium$parameter$demand$beta,
+    intercept = equilibrium$parameter$demand$intercept,
+    pi_alpha = equilibrium$parameter$demand$pi_alpha,
+    pi_beta = equilibrium$parameter$demand$pi_beta,
+    rho = equilibrium$parameter$demand$rho,
+    gamma = equilibrium$parameter$cost$gamma
+  )
+findGlobals(
+  update_price_rt
+)
+p_rt_new
+
 endogenous <- 
   update_endogenous(
     equilibrium = equilibrium
