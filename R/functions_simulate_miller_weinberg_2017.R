@@ -424,7 +424,7 @@ compute_inclusive_value_irt <-
     return(inclusive_value_irt)  # 1 x N vector
   }
 
-compute_share_individual_rt <- 
+compute_share_irt <- 
   function(
     u_irt,
     inclusive_value_i1rt,
@@ -451,12 +451,12 @@ compute_share_individual_rt <-
         byrow = TRUE
       )  # J x N
 
-    s_individual_rt <- within_group * across_group
+    s_irt <- within_group * across_group
 
-    return(s_individual_rt)
+    return(s_irt)
   }
 
-compute_share_individual_rt_wrapper <- 
+compute_share_irt_wrapper <- 
   function(
     x_rt,
     p_rt,
@@ -502,7 +502,7 @@ compute_share_individual_rt_wrapper <-
       )
 
     if (rho == 1) {
-      s_individual_rt <- 
+      s_irt <- 
         exp(u_irt) / 
         matrix(
           1 +
@@ -524,8 +524,8 @@ compute_share_individual_rt_wrapper <-
           rho = rho
         )
 
-      s_individual_rt <- 
-        compute_share_individual_rt(
+      s_irt <- 
+        compute_share_irt(
           u_irt = u_irt,
           inclusive_value_i1rt = I_i1rt,
           inclusive_value_irt = I_irt,
@@ -533,16 +533,16 @@ compute_share_individual_rt_wrapper <-
         )
     }
 
-    return(s_individual_rt)
+    return(s_irt)
   }
 
 compute_market_share_rt <- 
   function(
-    share_individual_rt
+    share_irt
   ) {
     share_rt <- 
       rowMeans(
-        share_individual_rt
+        share_irt
       )  # J x 1
 
     return(share_rt)
@@ -562,14 +562,14 @@ adjust_owner_rt_with_kappa <-
 
 compute_jacobian_rt <- 
   function(
-    s_individual_rt,
+    s_irt,
     d_rt,
     alpha,
     pi_alpha,
     rho
   ) {
-    J <- nrow(s_individual_rt)
-    N <- ncol(s_individual_rt)
+    J <- nrow(s_irt)
+    N <- ncol(s_irt)
 
     alpha_i <- 
       alpha + 
@@ -596,10 +596,10 @@ compute_jacobian_rt <-
       )
 
     for (j in 1:J) {
-      s_j <- s_individual_rt[j, ]
+      s_j <- s_irt[j, ]
 
       for (k in 1:J) {
-        s_k <- s_individual_rt[k, ]
+        s_k <- s_irt[k, ]
 
         if (j == k) {
           deriv_i <- 
@@ -759,8 +759,8 @@ update_price_rt <-
     rho,
     gamma
   ) {
-    s_individual_rt <- 
-      compute_share_individual_rt_wrapper(
+    s_irt <- 
+      compute_share_irt_wrapper(
         x_rt = x_rt,
         p_rt = p_rt,
         xi_rt = xi_rt,
@@ -777,7 +777,7 @@ update_price_rt <-
       )
     jacobian_rt <-
       compute_jacobian_rt(
-        s_individual_rt = s_individual_rt,
+        s_irt = s_irt,
         d_rt = d_rt,
         alpha = alpha,
         pi_alpha = pi_alpha,
@@ -785,7 +785,7 @@ update_price_rt <-
       )
     s_rt <-
       compute_market_share_rt(
-        share_individual_rt = s_individual_rt
+        share_irt = s_irt
       )
     price_rt <-
       add_markup_rt(
@@ -824,8 +824,8 @@ update_endogenous <-
               equilibrium$constant$num_market
             )
           ) %do% {
-            s_individual_rt <- 
-              compute_share_individual_rt_wrapper(
+            s_irt <- 
+              compute_share_irt_wrapper(
                 x_rt = equilibrium$exogenous$x[[t]][[r]],
                 p_rt = equilibrium$endogenous$price[[t]][[r]],
                 xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
@@ -843,7 +843,7 @@ update_endogenous <-
 
             share_rt <- 
               compute_market_share_rt(
-                share_individual_rt = s_individual_rt
+                share_irt = s_irt
               )
     
             return(share_rt)
@@ -875,8 +875,8 @@ update_endogenous <-
             } else {
               owner_rt <- equilibrium$exogenous$owner[[t]][[r]]
             }
-            s_individual_rt <- 
-              compute_share_individual_rt_wrapper(
+            s_irt <- 
+              compute_share_irt_wrapper(
                 x_rt = equilibrium$exogenous$x[[t]][[r]],
                 p_rt = equilibrium$endogenous$price[[t]][[r]],
                 xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
@@ -893,7 +893,7 @@ update_endogenous <-
               )
             jacobian_rt <-
               compute_jacobian_rt(
-                s_individual_rt = s_individual_rt,
+                s_irt = s_irt,
                 d_rt = equilibrium$exogenous$d[[t]][[r]],
                 alpha = equilibrium$parameter$demand$alpha,
                 pi_alpha = equilibrium$parameter$demand$pi_alpha,
@@ -901,7 +901,7 @@ update_endogenous <-
               )
             s_rt <-
               compute_market_share_rt(
-                share_individual_rt = s_individual_rt
+                share_irt = s_irt
               )
             price_rt <-
               add_markup_rt(

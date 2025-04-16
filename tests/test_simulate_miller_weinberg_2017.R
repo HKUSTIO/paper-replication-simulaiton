@@ -128,29 +128,29 @@ findGlobals(
 )
 I_irt
 
-s_individual_rt <- 
-  compute_share_individual_rt(
+s_irt <- 
+  compute_share_irt(
     u_irt = u_irt,
     inclusive_value_i1rt = I_i1rt,
     inclusive_value_irt = I_irt,
     rho = equilibrium$parameter$demand$rho
   )
 findGlobals(
-  compute_share_individual_rt
+  compute_share_irt
 )
-s_individual_rt
+s_irt
 
 s_rt <- 
   compute_market_share_rt(
-    share_individual_rt = s_individual_rt
+    share_irt = s_irt
   )
 findGlobals(
   compute_market_share_rt
 )
 s_rt
 
-s_individual_rt_wrapped <- 
-  compute_share_individual_rt_wrapper(
+s_irt_wrapped <- 
+  compute_share_irt_wrapper(
     x_rt = equilibrium$exogenous$x[[t]][[r]],
     p_rt = equilibrium$endogenous$p[[t]][[r]],
     xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
@@ -166,13 +166,13 @@ s_individual_rt_wrapped <-
     rho = equilibrium$parameter$demand$rho
   )
 findGlobals(
-  compute_share_individual_rt_wrapper
+  compute_share_irt_wrapper
 )
-s_individual_rt_wrapped
+s_irt_wrapped
 
 s_rt_wrapped <- 
   compute_market_share_rt(
-    share_individual_rt = s_individual_rt_wrapped
+    share_irt = s_irt_wrapped
   )
 findGlobals(
   compute_market_share_rt
@@ -181,7 +181,7 @@ s_rt_wrapped
 
 jacobian_rt <- 
   compute_jacobian_rt(
-    s_individual_rt = s_individual_rt_wrapped,
+    s_irt = s_irt_wrapped,
     d_rt = equilibrium$exogenous$d[[t]][[r]],
     alpha = equilibrium$parameter$demand$alpha,
     pi_alpha = equilibrium$parameter$demand$pi_alpha,
@@ -340,8 +340,8 @@ solve_endogenous_rt <-
     p_rt <- 
       solution$x %>%
       as.matrix()
-    share_individual_rt <- 
-      compute_share_individual_rt_wrapper(
+    share_irt <- 
+      compute_share_irt_wrapper(
         x_rt = x_rt,
         p_rt = p_rt,
         
