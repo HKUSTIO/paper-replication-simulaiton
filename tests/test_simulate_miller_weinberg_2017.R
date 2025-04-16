@@ -71,8 +71,13 @@ delta_rt <-
     xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
     sigma_d = equilibrium$shock$demand$sigma_d,
     tau_d = equilibrium$shock$demand$tau_d[[t]],
-    parameter = parameter
+    alpha = equilibrium$parameter$demand$alpha,
+    beta = equilibrium$parameter$demand$beta,
+    intercept = equilibrium$parameter$demand$intercept
   )
+findGlobals(
+  compute_delta_rt
+)
 delta_rt
 
 mu_irt <- 
@@ -81,8 +86,12 @@ mu_irt <-
     p_rt = equilibrium$endogenous$p[[t]][[r]],
     d_rt = equilibrium$exogenous$d[[t]][[r]],
     num_consumer = constant$num_consumer,
-    parameter = parameter
+    pi_alpha = equilibrium$parameter$demand$pi_alpha,
+    pi_beta = equilibrium$parameter$demand$pi_beta
   )
+findGlobals(
+  compute_mu_irt
+)
 mu_irt
 
 u_irt <- 
@@ -91,7 +100,11 @@ u_irt <-
     mu_irt = mu_irt,
     num_consumer = constant$num_consumer
   )
+findGlobals(
+  compute_u_irt
+)
 u_irt
+
 
 u_irt / (1 - equilibrium$parameter$demand$rho) 
 
@@ -100,6 +113,9 @@ I_i1rt <-
     u_irt = u_irt,
     rho = equilibrium$parameter$demand$rho
   )
+findGlobals(
+  compute_inclusive_value_i1rt
+)
 I_i1rt
 
 I_irt <- 
@@ -107,6 +123,9 @@ I_irt <-
     inclusive_value_i1rt = I_i1rt,
     rho = equilibrium$parameter$demand$rho
   )
+findGlobals(
+  compute_inclusive_value_irt
+)
 I_irt
 
 s_ijrt <- 
@@ -116,12 +135,18 @@ s_ijrt <-
     inclusive_value_irt = I_irt,
     rho = equilibrium$parameter$demand$rho
   )
+findGlobals(
+  compute_share_ijrt
+)
 s_ijrt
 
 s_jrt <- 
   compute_market_share_jrt(
     share_ijrt = s_ijrt
   )
+findGlobals(
+  compute_market_share_jrt
+)
 s_jrt
 
 s_ijrt_wrapped <- 
@@ -133,23 +158,38 @@ s_ijrt_wrapped <-
     tau_d_t = equilibrium$shock$demand$tau_d[[t]],
     d_rt = equilibrium$exogenous$d[[t]][[r]],
     num_consumer = constant$num_consumer,
-    parameter = parameter
+    alpha = equilibrium$parameter$demand$alpha,
+    beta = equilibrium$parameter$demand$beta,
+    intercept = equilibrium$parameter$demand$intercept,
+    pi_alpha = equilibrium$parameter$demand$pi_alpha,
+    pi_beta = equilibrium$parameter$demand$pi_beta,
+    rho = equilibrium$parameter$demand$rho
   )
+findGlobals(
+  compute_share_ijrt_wrapper
+)
 s_ijrt_wrapped
 
 s_jrt_wrapped <- 
   compute_market_share_jrt(
     share_ijrt = s_ijrt_wrapped
   )
+findGlobals(
+  compute_market_share_jrt
+)
 s_jrt_wrapped
 
 jacobian_rt <- 
   compute_jacobian_rt(
     s_ijrt = s_ijrt_wrapped,
     d_rt = equilibrium$exogenous$d[[t]][[r]],
-    parameter = parameter,
-    constant = constant
+    alpha = equilibrium$parameter$demand$alpha,
+    pi_alpha = equilibrium$parameter$demand$pi_alpha,
+    rho = equilibrium$parameter$demand$rho
   )
+findGlobals(
+  compute_jacobian_rt
+)
 jacobian_rt
 
 mc_rt <- 
@@ -159,8 +199,11 @@ mc_rt <-
     tau_s_t = equilibrium$shock$cost$tau_s[[t]],
     mu_s_r = equilibrium$shock$cost$mu_s[[t]],
     eta_rt = equilibrium$shock$cost$eta[[t]][[r]],
-    parameter = parameter
+    gamma = equilibrium$parameter$cost$gamma
   )
+findGlobals(
+  compute_marginal_cost_rt
+)
 mc_rt
 
 p_rt_new <- 
@@ -174,15 +217,23 @@ p_rt_new <-
     mu_s_r = equilibrium$shock$cost$mu_s[[t]],
     eta_rt = equilibrium$shock$cost$eta[[t]][[r]],
     s_ijrt = s_ijrt_wrapped,
-    parameter = parameter,
-    constant = constant 
+    alpha = equilibrium$parameter$demand$alpha,
+    pi_alpha = equilibrium$parameter$demand$pi_alpha,
+    rho = equilibrium$parameter$demand$rho,
+    gamma = equilibrium$parameter$cost$gamma
   )
+findGlobals(
+  update_price_rt
+)
 p_rt_new
 
 endogenous <- 
   update_endogenous(
     equilibrium = equilibrium
   )
+findGlobals(
+  update_endogenous
+)
 endogenous$share[[1]][[1]]
 endogenous$price[[1]][[1]]
 
@@ -194,6 +245,9 @@ equilibrium <-
   solve_equilibrium(
     equilibrium = equilibrium
   )
+findGLobals(
+  solve_equilibrium
+)
 
 if (!dir.exists("output/simulate")) {
   dir.create("output/simulate", 

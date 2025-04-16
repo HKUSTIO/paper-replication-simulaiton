@@ -319,17 +319,10 @@ compute_delta_rt <-
     xi_rt,
     sigma_d,
     tau_d_t,
-    parameter
+    alpha,
+    beta,
+    intercept
   ) {
-    beta <- 
-      parameter$demand$beta
-
-    alpha <- 
-      parameter$demand$alpha
-
-    intercept <- 
-      parameter$demand$intercept
-
     delta <- 
       intercept +
       x_rt * beta +
@@ -341,7 +334,6 @@ compute_delta_rt <-
         nrow = nrow(x_rt),
         ncol = 1
       )
-
     return(
       delta
     )
@@ -353,10 +345,9 @@ compute_mu_irt <-
     p_rt,
     d_rt,
     num_consumer,
-    parameter
+    pi_alpha,
+    pi_beta
   ) {
-    pi_beta <- parameter$demand$pi_beta
-    pi_alpha <- parameter$demand$pi_alpha
 
     d_vec <- 
       matrix(
@@ -474,7 +465,12 @@ compute_share_ijrt_wrapper <-
     tau_d_t,
     d_rt,
     num_consumer,
-    parameter
+    alpha,
+    beta,
+    intercept,
+    pi_alpha,
+    pi_beta,
+    rho
   ) {
     delta_rt <- 
       compute_delta_rt(
@@ -483,7 +479,9 @@ compute_share_ijrt_wrapper <-
         xi_rt = xi_rt,
         sigma_d = sigma_d,
         tau_d_t = tau_d_t,
-        parameter = parameter
+        alpha = alpha,
+        beta = beta,
+        intercept = intercept
       )
 
     mu_irt <- 
@@ -492,7 +490,8 @@ compute_share_ijrt_wrapper <-
         p_rt = p_rt,
         d_rt = d_rt,
         num_consumer = num_consumer,
-        parameter = parameter
+        pi_alpha = pi_alpha,
+        pi_beta = pi_beta
       )
 
     u_irt <- 
@@ -501,8 +500,6 @@ compute_share_ijrt_wrapper <-
         mu_irt = mu_irt,
         num_consumer = num_consumer
       )
-
-    rho <- parameter$demand$rho
 
     if (rho == 1) {
       s_ijrt <- 
@@ -570,66 +567,64 @@ adjust_owner_rt_with_kappa <-
     return(owner_rt)
   }
 
-compute_jacobian_rt <- function(
-  s_ijrt,
-  d_rt,
-  parameter,
-  constant
-) {
-  J <- nrow(s_ijrt)
-  N <- ncol(s_ijrt)
+compute_jacobian_rt <- 
+  function(
+    s_ijrt,
+    d_rt,
+    alpha,
+    pi_alpha,
+    rho
+  ) {
+    J <- nrow(s_ijrt)
+    N <- ncol(s_ijrt)
 
-  alpha     <- parameter$demand$alpha
-  pi_alpha  <- parameter$demand$pi_alpha
-  rho       <- parameter$demand$rho
+    alpha_i <- 
+      alpha + 
+      pi_alpha * d_rt
 
-  alpha_i <- 
-    alpha + 
-    pi_alpha * d_rt
-
-  alpha_mat <- 
-    matrix(
-      alpha_i,
-      nrow = J,
-      ncol = N,
-      byrow = TRUE
-    )
-
-  if (rho != 1) {
     alpha_mat <- 
-      alpha_mat / (1 - rho)
-  }
+      matrix(
+        alpha_i,
+        nrow = J,
+        ncol = N,
+        byrow = TRUE
+      )
 
-  jacobian <- 
-    matrix(
-      0,
-      nrow = J,
-      ncol = J
-    )
-
-  for (j in 1:J) {
-    s_j <- s_ijrt[j, ]
-
-    for (k in 1:J) {
-      s_k <- s_ijrt[k, ]
-
-      if (j == k) {
-        deriv_i <- 
-          alpha_mat[j, ] * 
-          s_j * (1 - s_j)
-      } else {
-        deriv_i <- 
-          - alpha_mat[j, ] * 
-          s_j * s_k
-      }
-
-      jacobian[j, k] <- 
-        mean(deriv_i)
+    if (rho != 1) {
+      alpha_mat <- 
+        alpha_mat / (1 - rho)
     }
-  }
 
-  return(jacobian)
-}
+    jacobian <- 
+      matrix(
+        0,
+        nrow = J,
+        ncol = J
+      )
+
+    for (j in 1:J) {
+      s_j <- s_ijrt[j, ]
+
+      for (k in 1:J) {
+        s_k <- s_ijrt[k, ]
+
+        if (j == k) {
+          deriv_i <- 
+            alpha_mat[j, ] * 
+            s_j * (1 - s_j)
+        } else {
+          deriv_i <- 
+            - alpha_mat[j, ] * 
+            s_j * s_k
+        }
+
+        jacobian[j, k] <- 
+          mean(deriv_i)
+      }
+    }
+
+    return(jacobian)
+  }
 
 compute_marginal_cost_rt <- 
   function(
@@ -638,11 +633,8 @@ compute_marginal_cost_rt <-
     tau_s_t,
     mu_s_r,
     eta_rt,
-    parameter
+    gamma
   ) {
-    gamma <- 
-      parameter$cost$gamma
-
     mc_rt <- 
       w_rt * gamma + 
       sigma_s + 
@@ -664,8 +656,10 @@ update_price_rt <-
     mu_s_r,
     eta_rt,
     s_ijrt,
-    parameter,
-    constant
+    alpha,
+    pi_alpha,
+    rho,
+    gamma
   ) {
 
     mc_rt <-
@@ -675,15 +669,16 @@ update_price_rt <-
         tau_s_t = tau_s_t,
         mu_s_r = mu_s_r,
         eta_rt = eta_rt,
-        parameter = parameter
+        gamma = gamma
       )
 
     jacobian_rt <-
       compute_jacobian_rt(
         s_ijrt = s_ijrt,
         d_rt = d_rt,
-        parameter = parameter,
-        constant = constant
+        alpha = alpha,
+        pi_alpha = pi_alpha,
+        rho = rho
       )
     s_jrt <-
       compute_market_share_jrt(
@@ -785,7 +780,12 @@ update_endogenous <-
                 tau_d_t = equilibrium$shock$demand$tau_d[t],
                 d_rt = equilibrium$exogenous$d[[t]][[r]],
                 num_consumer = equilibrium$constant$num_consumer,
-                parameter = equilibrium$parameter
+                alpha = equilibrium$parameter$demand$alpha,
+                beta = equilibrium$parameter$demand$beta,
+                intercept = equilibrium$parameter$demand$intercept,
+                pi_alpha = equilibrium$parameter$demand$pi_alpha,
+                pi_beta = equilibrium$parameter$demand$pi_beta,
+                rho = equilibrium$parameter$demand$rho
               )
 
             share_rt <- 
@@ -827,8 +827,12 @@ update_endogenous <-
                 tau_d_t = equilibrium$shock$demand$tau_d[[t]],
                 d_rt = equilibrium$exogenous$d[[t]][[r]],
                 num_consumer = equilibrium$constant$num_consumer,
-                parameter = equilibrium$parameter
-              )
+                alpha = equilibrium$parameter$demand$alpha,
+                beta = equilibrium$parameter$demand$beta,
+                intercept = equilibrium$parameter$demand$intercept,
+                pi_alpha = equilibrium$parameter$demand$pi_alpha,
+                pi_beta = equilibrium$parameter$demand$pi_beta,
+                rho = equilibrium$parameter$demand$rho              )
             price_rt <-
               update_price_rt(
                 x_rt = equilibrium$exogenous$x[[t]][[r]],
@@ -840,8 +844,10 @@ update_endogenous <-
                 mu_s_r = equilibrium$shock$cost$mu_s[[r]],
                 eta_rt = equilibrium$shock$cost$eta[[t]][[r]],
                 s_ijrt = s_ijrt,
-                parameter = equilibrium$parameter,
-                constant = equilibrium$constant
+                alpha = equilibrium$parameter$demand$alpha,
+                pi_alpha = equilibrium$parameter$demand$pi_alpha,
+                rho = equilibrium$parameter$demand$rho,
+                gamma = equilibrium$parameter$cost$gamma
               )
             return(price_rt)
           }
