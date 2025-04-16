@@ -67,7 +67,7 @@ equilibrium <-
 delta_rt <- 
   compute_delta_rt(
     x_rt = equilibrium$exogenous$x[[t]][[r]],
-    p_rt = equilibrium$endogenous$p[[t]][[r]],
+    price_rt = equilibrium$endogenous$p[[t]][[r]],
     xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
     sigma_d = equilibrium$shock$demand$sigma_d,
     tau_d = equilibrium$shock$demand$tau_d[[t]],
@@ -83,7 +83,7 @@ delta_rt
 mu_irt <- 
   compute_mu_irt(
     x_rt = equilibrium$exogenous$x[[t]][[r]],
-    p_rt = equilibrium$endogenous$p[[t]][[r]],
+    price_rt = equilibrium$endogenous$p[[t]][[r]],
     d_rt = equilibrium$exogenous$d[[t]][[r]],
     num_consumer = constant$num_consumer,
     pi_alpha = equilibrium$parameter$demand$pi_alpha,
@@ -140,19 +140,19 @@ findGlobals(
 )
 s_irt
 
-s_rt <- 
+share_rt <- 
   compute_share_rt(
     share_irt = s_irt
   )
 findGlobals(
   compute_share_rt
 )
-s_rt
+share_rt
 
 s_irt_wrapped <- 
   compute_share_irt_wrapper(
     x_rt = equilibrium$exogenous$x[[t]][[r]],
-    p_rt = equilibrium$endogenous$p[[t]][[r]],
+    price_rt = equilibrium$endogenous$p[[t]][[r]],
     xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
     sigma_d = equilibrium$shock$demand$sigma_d,
     tau_d_t = equilibrium$shock$demand$tau_d[[t]],
@@ -170,10 +170,10 @@ findGlobals(
 )
 s_irt_wrapped
 
-s_rt <-
+share_rt <-
   compute_share_rt_wrapper(
     x_rt = equilibrium$exogenous$x[[t]][[r]],
-    p_rt = equilibrium$endogenous$p[[t]][[r]],
+    price_rt = equilibrium$endogenous$p[[t]][[r]],
     xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
     sigma_d = equilibrium$shock$demand$sigma_d,
     tau_d_t = equilibrium$shock$demand$tau_d[[t]],
@@ -189,7 +189,7 @@ s_rt <-
 findGlobals(
   compute_share_rt_wrapper
 )
-s_rt
+share_rt
 
 jacobian_rt <- 
   compute_jacobian_rt(
@@ -234,7 +234,7 @@ p_rt_new <-
     tau_s_t = equilibrium$shock$cost$tau_s[[t]],
     mu_s_r = equilibrium$shock$cost$mu_s[[t]],
     eta_rt = equilibrium$shock$cost$eta[[t]][[r]],
-    s_rt = equilibrium$endogenous$share[[t]][[r]],
+    share_rt = equilibrium$endogenous$share[[t]][[r]],
     jacobian_rt = jacobian_rt,
     alpha = equilibrium$parameter$demand$alpha,
     pi_alpha = equilibrium$parameter$demand$pi_alpha,
@@ -252,7 +252,7 @@ p_rt_new <-
     w_rt = equilibrium$exogenous$w[[t]][[r]],
     d_rt = equilibrium$exogenous$d[[t]][[r]],
     owner_rt = equilibrium$exogenous$owner[[t]][[r]],
-    p_rt = equilibrium$endogenous$p[[t]][[r]],
+    price_rt = equilibrium$endogenous$p[[t]][[r]],
     xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
     sigma_d = equilibrium$shock$demand$sigma_d,
     tau_d_t = equilibrium$shock$demand$tau_d[[t]],
@@ -294,7 +294,7 @@ solve_endogenous_rt <-
     w_rt,
     d_rt,
     owner_rt,
-    p_rt,
+    price_rt,
     xi_rt,
     sigma_d,
     tau_d_t,
@@ -313,7 +313,7 @@ solve_endogenous_rt <-
   ) {
     fn <-
       function(
-        p_rt 
+        price_rt 
       ) {
         p_rt_new <-
           update_price_rt(
@@ -321,7 +321,7 @@ solve_endogenous_rt <-
             w_rt = w_rt,
             d_rt = d_rt,
             owner_rt = owner_rt,
-            p_rt = p_rt,
+            price_rt = price_rt,
             xi_rt = xi_rt,
             sigma_d = sigma_d,
             tau_d_t = tau_d_t,
@@ -339,26 +339,42 @@ solve_endogenous_rt <-
             gamma = gamma
           )
         return(
-          p_rt - p_rt_new
+          price_rt - p_rt_new
         )
       }
     solution <-
       nleqslv::nleqslv(
-        x = p_rt,
+        x = price_rt,
         fn = fn,
         lower = 0,
         method = "L-BFGS-B"
       )
-    p_rt <- 
+    price_rt <- 
       solution$x %>%
       as.matrix()
-    share_irt <- 
-      compute_share_irt_wrapper(
+    share_rt <-
+      compute_share_rt_wrapper(
         x_rt = x_rt,
-        p_rt = p_rt,
-        
+        price_rt = price_rt,
+        xi_rt = xi_rt,
+        sigma_d = sigma_d,
+        tau_d_t = tau_d_t,
+        d_rt = d_rt,
+        num_consumer = num_consumer,
+        alpha = alpha,
+        beta = beta,
+        intercept = intercept,
+        pi_alpha = pi_alpha,
+        pi_beta = pi_beta,
+        rho = rho,
+        gamma = gamma
       )
-    return()
+    return(
+      list(
+        share_rt = share_rt,
+        price_rt = price_rt
+      )
+    )
   }
 
 equilibrium <- 

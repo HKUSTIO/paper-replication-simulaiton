@@ -315,7 +315,7 @@ set_shock <-
 compute_delta_rt <- 
   function(
     x_rt,
-    p_rt,
+    price_rt,
     xi_rt,
     sigma_d,
     tau_d_t,
@@ -326,7 +326,7 @@ compute_delta_rt <-
     delta <- 
       intercept +
       x_rt * beta +
-      p_rt * alpha +
+      price_rt * alpha +
       xi_rt +
       sigma_d +
       matrix(
@@ -342,7 +342,7 @@ compute_delta_rt <-
 compute_mu_irt <- 
   function(
     x_rt,
-    p_rt,
+    price_rt,
     d_rt,
     num_consumer,
     pi_alpha,
@@ -360,7 +360,7 @@ compute_mu_irt <-
       x_rt %*% t(d_vec) * pi_beta    # J x N
 
     p_term <- 
-      p_rt %*% t(d_vec) * pi_alpha   # J x N
+      price_rt %*% t(d_vec) * pi_alpha   # J x N
 
     mu_irt <- 
       x_term + p_term               # J x N
@@ -459,7 +459,7 @@ compute_share_irt <-
 compute_share_irt_wrapper <- 
   function(
     x_rt,
-    p_rt,
+    price_rt,
     xi_rt,
     sigma_d,
     tau_d_t,
@@ -475,7 +475,7 @@ compute_share_irt_wrapper <-
     delta_rt <- 
       compute_delta_rt(
         x_rt = x_rt,
-        p_rt = p_rt,
+        price_rt = price_rt,
         xi_rt = xi_rt,
         sigma_d = sigma_d,
         tau_d_t = tau_d_t,
@@ -487,7 +487,7 @@ compute_share_irt_wrapper <-
     mu_irt <- 
       compute_mu_irt(
         x_rt = x_rt,
-        p_rt = p_rt,
+        price_rt = price_rt,
         d_rt = d_rt,
         num_consumer = num_consumer,
         pi_alpha = pi_alpha,
@@ -552,7 +552,7 @@ compute_share_rt <-
 compute_share_rt_wrapper <-
   function(
     x_rt,
-    p_rt,
+    price_rt,
     xi_rt,
     sigma_d,
     tau_d_t,
@@ -568,7 +568,7 @@ compute_share_rt_wrapper <-
     s_irt <- 
       compute_share_irt_wrapper(
         x_rt = x_rt,
-        p_rt = p_rt,
+        price_rt = price_rt,
         xi_rt = xi_rt,
         sigma_d = sigma_d,
         tau_d_t = tau_d_t,
@@ -581,11 +581,11 @@ compute_share_rt_wrapper <-
         pi_beta = pi_beta,
         rho = rho
       )
-    s_rt <- 
+    share_rt <- 
       compute_share_rt(
         share_irt = s_irt
       )
-    return(s_rt)
+    return(share_rt)
   }
 
 adjust_owner_rt_with_kappa <- 
@@ -688,7 +688,7 @@ add_markup_rt <-
     tau_s_t,
     mu_s_r,
     eta_rt,
-    s_rt,
+    share_rt,
     jacobian_rt,
     alpha,
     pi_alpha,
@@ -709,7 +709,7 @@ add_markup_rt <-
     markup <-
       - solve(
         owner_rt * t(jacobian_rt),
-        s_rt
+        share_rt
       )
 
     price_rt <- mc_rt + markup
@@ -782,7 +782,7 @@ update_price_rt <-
     w_rt,
     d_rt,
     owner_rt,
-    p_rt,
+    price_rt,
     xi_rt,
     sigma_d,
     tau_d_t,
@@ -802,7 +802,7 @@ update_price_rt <-
     s_irt <- 
       compute_share_irt_wrapper(
         x_rt = x_rt,
-        p_rt = p_rt,
+        price_rt = price_rt,
         xi_rt = xi_rt,
         sigma_d = sigma_d,
         tau_d_t = tau_d_t,
@@ -823,7 +823,7 @@ update_price_rt <-
         pi_alpha = pi_alpha,
         rho = rho
       )
-    s_rt <-
+    share_rt <-
       compute_share_rt(
         share_irt = s_irt
       )
@@ -837,7 +837,7 @@ update_price_rt <-
         tau_s_t = tau_s_t,
         mu_s_r = mu_s_r,
         eta_rt = eta_rt,
-        s_rt = s_rt,
+        share_rt = share_rt,
         jacobian_rt = jacobian_rt,
         alpha = alpha,
         pi_alpha = pi_alpha,
@@ -867,7 +867,7 @@ update_endogenous <-
             s_irt <- 
               compute_share_irt_wrapper(
                 x_rt = equilibrium$exogenous$x[[t]][[r]],
-                p_rt = equilibrium$endogenous$price[[t]][[r]],
+                price_rt = equilibrium$endogenous$price[[t]][[r]],
                 xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
                 sigma_d = equilibrium$shock$demand$sigma_d,
                 tau_d_t = equilibrium$shock$demand$tau_d[t],
@@ -918,7 +918,7 @@ update_endogenous <-
             s_irt <- 
               compute_share_irt_wrapper(
                 x_rt = equilibrium$exogenous$x[[t]][[r]],
-                p_rt = equilibrium$endogenous$price[[t]][[r]],
+                price_rt = equilibrium$endogenous$price[[t]][[r]],
                 xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
                 sigma_d = equilibrium$shock$demand$sigma_d,
                 tau_d_t = equilibrium$shock$demand$tau_d[[t]],
@@ -939,7 +939,7 @@ update_endogenous <-
                 pi_alpha = equilibrium$parameter$demand$pi_alpha,
                 rho = equilibrium$parameter$demand$rho
               )
-            s_rt <-
+            share_rt <-
               compute_share_rt(
                 share_irt = s_irt
               )
@@ -953,7 +953,7 @@ update_endogenous <-
                 tau_s_t = equilibrium$shock$cost$tau_s[[t]],
                 mu_s_r = equilibrium$shock$cost$mu_s[[r]],
                 eta_rt = equilibrium$shock$cost$eta[[t]][[r]],
-                s_rt = s_rt,
+                share_rt = share_rt,
                 jacobian_rt = jacobian_rt,
                 alpha = equilibrium$parameter$demand$alpha,
                 pi_alpha = equilibrium$parameter$demand$pi_alpha,
