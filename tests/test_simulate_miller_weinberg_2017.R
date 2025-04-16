@@ -274,18 +274,6 @@ findGlobals(
 )
 p_rt_new
 
-endogenous <- 
-  update_endogenous(
-    equilibrium = equilibrium
-  )
-findGlobals(
-  update_endogenous
-)
-endogenous$share[[1]][[1]]
-endogenous$price[[1]][[1]]
-
-findGlobals(set_endogenous)
-
 # set equilibrium --------------------------------------------------------------
 
 endogenous_rt <- 
