@@ -512,23 +512,23 @@ compute_share_irt_wrapper <-
           byrow = TRUE
         )
     } else {
-      I_i1rt <- 
+      inclusive_i1rt <- 
         compute_inclusive_value_i1rt(
           u_irt = u_irt,
           rho = rho
         )
 
-      I_irt <- 
+      inclusive_irt <- 
         compute_inclusive_value_irt(
-          inclusive_value_i1rt = I_i1rt,
+          inclusive_value_i1rt = inclusive_i1rt,
           rho = rho
         )
 
       s_irt <- 
         compute_share_irt(
           u_irt = u_irt,
-          inclusive_value_i1rt = I_i1rt,
-          inclusive_value_irt = I_irt,
+          inclusive_value_i1rt = inclusive_i1rt,
+          inclusive_value_irt = inclusive_irt,
           rho = rho
         )
     }
