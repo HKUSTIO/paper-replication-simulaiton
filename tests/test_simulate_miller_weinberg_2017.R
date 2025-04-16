@@ -128,29 +128,29 @@ findGlobals(
 )
 I_irt
 
-s_ijrt <- 
-  compute_share_ijrt(
+s_individual_rt <- 
+  compute_share_individual_rt(
     u_irt = u_irt,
     inclusive_value_i1rt = I_i1rt,
     inclusive_value_irt = I_irt,
     rho = equilibrium$parameter$demand$rho
   )
 findGlobals(
-  compute_share_ijrt
+  compute_share_individual_rt
 )
-s_ijrt
+s_individual_rt
 
-s_jrt <- 
-  compute_market_share_jrt(
-    share_ijrt = s_ijrt
+s_rt <- 
+  compute_market_share_rt(
+    share_individual_rt = s_individual_rt
   )
 findGlobals(
-  compute_market_share_jrt
+  compute_market_share_rt
 )
-s_jrt
+s_rt
 
-s_ijrt_wrapped <- 
-  compute_share_ijrt_wrapper(
+s_individual_rt_wrapped <- 
+  compute_share_individual_rt_wrapper(
     x_rt = equilibrium$exogenous$x[[t]][[r]],
     p_rt = equilibrium$endogenous$p[[t]][[r]],
     xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
@@ -166,22 +166,22 @@ s_ijrt_wrapped <-
     rho = equilibrium$parameter$demand$rho
   )
 findGlobals(
-  compute_share_ijrt_wrapper
+  compute_share_individual_rt_wrapper
 )
-s_ijrt_wrapped
+s_individual_rt_wrapped
 
-s_jrt_wrapped <- 
-  compute_market_share_jrt(
-    share_ijrt = s_ijrt_wrapped
+s_rt_wrapped <- 
+  compute_market_share_rt(
+    share_individual_rt = s_individual_rt_wrapped
   )
 findGlobals(
-  compute_market_share_jrt
+  compute_market_share_rt
 )
-s_jrt_wrapped
+s_rt_wrapped
 
 jacobian_rt <- 
   compute_jacobian_rt(
-    s_ijrt = s_ijrt_wrapped,
+    s_individual_rt = s_individual_rt_wrapped,
     d_rt = equilibrium$exogenous$d[[t]][[r]],
     alpha = equilibrium$parameter$demand$alpha,
     pi_alpha = equilibrium$parameter$demand$pi_alpha,
@@ -222,7 +222,7 @@ p_rt_new <-
     tau_s_t = equilibrium$shock$cost$tau_s[[t]],
     mu_s_r = equilibrium$shock$cost$mu_s[[t]],
     eta_rt = equilibrium$shock$cost$eta[[t]][[r]],
-    s_jrt = equilibrium$endogenous$share[[t]][[r]],
+    s_rt = equilibrium$endogenous$share[[t]][[r]],
     jacobian_rt = jacobian_rt,
     alpha = equilibrium$parameter$demand$alpha,
     pi_alpha = equilibrium$parameter$demand$pi_alpha,
@@ -275,6 +275,79 @@ endogenous$price[[1]][[1]]
 findGlobals(set_endogenous)
 
 # set equilibrium --------------------------------------------------------------
+
+solve_endogenous_rt <-
+  function(
+    x_rt,
+    w_rt,
+    d_rt,
+    owner_rt,
+    p_rt,
+    xi_rt,
+    sigma_d,
+    tau_d_t,
+    sigma_s,
+    tau_s_t,
+    mu_s_r,
+    eta_rt,
+    num_consumer,
+    alpha,
+    beta,
+    intercept,
+    pi_alpha,
+    pi_beta,
+    rho,
+    gamma
+  ) {
+    fn <-
+      function(
+        p_rt 
+      ) {
+        p_rt_new <-
+          update_price_rt(
+            x_rt = x_rt,
+            w_rt = w_rt,
+            d_rt = d_rt,
+            owner_rt = owner_rt,
+            p_rt = p_rt,
+            xi_rt = xi_rt,
+            sigma_d = sigma_d,
+            tau_d_t = tau_d_t,
+            sigma_s = sigma_s,
+            tau_s_t = tau_s_t,
+            mu_s_r = mu_s_r,
+            eta_rt = eta_rt,
+            num_consumer = num_consumer,
+            alpha = alpha,
+            beta = beta,
+            intercept = intercept,
+            pi_alpha = pi_alpha,
+            pi_beta = pi_beta,
+            rho = rho,
+            gamma = gamma
+          )
+        return(
+          p_rt - p_rt_new
+        )
+      }
+    solution <-
+      nleqslv::nleqslv(
+        x = p_rt,
+        fn = fn,
+        lower = 0,
+        method = "L-BFGS-B"
+      )
+    p_rt <- 
+      solution$x %>%
+      as.matrix()
+    share_individual_rt <- 
+      compute_share_individual_rt_wrapper(
+        x_rt = x_rt,
+        p_rt = p_rt,
+        
+      )
+    return()
+  }
 
 equilibrium <- 
   solve_equilibrium(
