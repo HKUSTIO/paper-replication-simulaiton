@@ -1105,54 +1105,76 @@ set_equilibrium <-
 
 solve_equilibrium <- 
   function(
-    equilibrium,
-    lambda = 1e-6,
-    max_iter = 10000
+    equilibrium
   ) {
 
-    distance <- 10000
-    iter <- 0
-
-    while (distance > lambda && iter < max_iter) {
-
-      endogenous_new <- 
-        update_endogenous(
-          equilibrium = equilibrium
+    endogenous <-
+      foreach (
+        t = seq_along(
+          equilibrium$exogenous$x
         )
-      p_old <- equilibrium$endogenous$price
-      p_new <- endogenous_new$price
-
-      distance <- 
-        max(
-          unlist(
-            lapply(
-              seq_along(p_new),
-              function(t) {
-                unlist(
-                  lapply(
-                    seq_along(p_new[[t]]),
-                    function(r) {
-                      abs(
-                        p_new[[t]][[r]] - 
-                        p_old[[t]][[r]]
-                      )
-                    }
-                  )
-                )
-              }
+      ) %do% {
+        endogenous_t <-
+          foreach (
+            r = seq_along(
+              equilibrium$exogenous$x[[t]]
             )
-          )
+          ) %do% {
+            if (
+              t > equilibrium$constant$num_period_before
+            ) {
+              owner_rt <- 
+                adjust_owner_rt_with_kappa(
+                  owner_rt = equilibrium$exogenous$owner[[t]][[r]],
+                  kappa = equilibrium$parameter$conduct$kappa
+                )
+            } else {
+              owner_rt <- equilibrium$exogenous$owner[[t]][[r]]
+            }
+            endogenous_rt <- 
+              solve_endogenous_rt(
+                x_rt = equilibrium$exogenous$x[[t]][[r]],
+                w_rt = equilibrium$exogenous$w[[t]][[r]],
+                d_rt = equilibrium$exogenous$d[[t]][[r]],
+                owner_rt = equilibrium$exogenous$owner[[t]][[r]],
+                price_rt = equilibrium$endogenous$p[[t]][[r]],
+                xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
+                sigma_d = equilibrium$shock$demand$sigma_d,
+                tau_d_t = equilibrium$shock$demand$tau_d[[t]],
+                sigma_s = equilibrium$shock$cost$sigma_s,
+                tau_s_t = equilibrium$shock$cost$tau_s[[t]],
+                mu_s_r = equilibrium$shock$cost$mu_s[[r]],
+                eta_rt = equilibrium$shock$cost$eta[[t]][[r]],
+                num_consumer = equilibrium$constant$num_consumer,
+                alpha = equilibrium$parameter$demand$alpha,
+                beta = equilibrium$parameter$demand$beta,
+                intercept = equilibrium$parameter$demand$intercept,
+                pi_alpha = equilibrium$parameter$demand$pi_alpha,
+                pi_beta = equilibrium$parameter$demand$pi_beta,
+                rho = equilibrium$parameter$demand$rho,
+                gamma = equilibrium$parameter$cost$gamma
+              ) 
+            return(endogenous_rt)
+          }
+        return(endogenous_t)
+      }
+
+    for (
+      t in seq_along(
+        equilibrium$exogenous$x
+      )
+    ) {
+      for (
+        r in seq_along(
+          equilibrium$exogenous$x[[t]]
         )
-
-      print(distance)
-      iter <- iter + 1
-      equilibrium$endogenous <- endogenous_new
+      ) {
+        equilibrium$endogenous$share[[t]][[r]] <-
+          endogenous[[t]][[r]]$share_rt
+        equilibrium$endogenous$price[[t]][[r]] <-
+          endogenous[[t]][[r]]$price_rt
+      }
     }
-
-    if (iter == max_iter) {
-      warning("Equilibrium did not converge after max_iter.")
-    }
-
     return(
       equilibrium
     )
