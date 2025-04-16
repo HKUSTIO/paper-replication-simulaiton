@@ -740,21 +740,14 @@ update_price_rt <-
   function(
 
   ) {
-    owner_rt_adj <- 
-      adjust_owner_rt_with_kappa(
-        owner_rt = owner_rt,
-        t = t,
-        constant = equilibrium$constant,
-        parameter = equilibrium$parameter
-      )
     s_ijrt <- 
       compute_share_ijrt_wrapper(
-        x_rt = equilibrium$exogenous$x[[t]][[r]],
-        p_rt = equilibrium$endogenous$price[[t]][[r]],
-        xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
-        sigma_d = equilibrium$shock$demand$sigma_d,
-        tau_d_t = equilibrium$shock$demand$tau_d[[t]],
-        d_rt = equilibrium$exogenous$d[[t]][[r]],
+        x_rt = x_rt,
+        p_rt = p_rt,
+        xi_rt = xi_rt,
+        sigma_d = sigma_d,
+        tau_d_t = tau_d_t,
+        d_rt = d_rt,
         num_consumer = equilibrium$constant$num_consumer,
         alpha = equilibrium$parameter$demand$alpha,
         beta = equilibrium$parameter$demand$beta,
@@ -780,7 +773,7 @@ update_price_rt <-
         x_rt = equilibrium$exogenous$x[[t]][[r]],
         w_rt = equilibrium$exogenous$w[[t]][[r]],
         d_rt = equilibrium$exogenous$d[[t]][[r]],
-        owner_rt = owner_rt_adj,
+        owner_rt = owner_rt,
         sigma_s = equilibrium$shock$cost$sigma_s,
         tau_s_t = equilibrium$shock$cost$tau_s[[t]],
         mu_s_r = equilibrium$shock$cost$mu_s[[r]],
