@@ -655,7 +655,8 @@ update_price_rt <-
     tau_s_t,
     mu_s_r,
     eta_rt,
-    s_ijrt,
+    s_jrt,
+    jacobian_rt,
     alpha,
     pi_alpha,
     rho,
@@ -672,18 +673,6 @@ update_price_rt <-
         gamma = gamma
       )
 
-    jacobian_rt <-
-      compute_jacobian_rt(
-        s_ijrt = s_ijrt,
-        d_rt = d_rt,
-        alpha = alpha,
-        pi_alpha = pi_alpha,
-        rho = rho
-      )
-    s_jrt <-
-      compute_market_share_jrt(
-        share_ijrt = s_ijrt
-      )
     markup <-
       - solve(
         owner_rt * t(jacobian_rt),
@@ -832,7 +821,20 @@ update_endogenous <-
                 intercept = equilibrium$parameter$demand$intercept,
                 pi_alpha = equilibrium$parameter$demand$pi_alpha,
                 pi_beta = equilibrium$parameter$demand$pi_beta,
-                rho = equilibrium$parameter$demand$rho              )
+                rho = equilibrium$parameter$demand$rho
+              )
+            jacobian_rt <-
+              compute_jacobian_rt(
+                s_ijrt = s_ijrt,
+                d_rt = equilibrium$exogenous$d[[t]][[r]],
+                alpha = equilibrium$parameter$demand$alpha,
+                pi_alpha = equilibrium$parameter$demand$pi_alpha,
+                rho = equilibrium$parameter$demand$rho
+              )
+            s_jrt <-
+              compute_market_share_jrt(
+                share_ijrt = s_ijrt
+              )
             price_rt <-
               update_price_rt(
                 x_rt = equilibrium$exogenous$x[[t]][[r]],
@@ -843,7 +845,8 @@ update_endogenous <-
                 tau_s_t = equilibrium$shock$cost$tau_s[[t]],
                 mu_s_r = equilibrium$shock$cost$mu_s[[r]],
                 eta_rt = equilibrium$shock$cost$eta[[t]][[r]],
-                s_ijrt = s_ijrt,
+                s_jrt = s_jrt,
+                jacobian_rt = jacobian_rt,
                 alpha = equilibrium$parameter$demand$alpha,
                 pi_alpha = equilibrium$parameter$demand$pi_alpha,
                 rho = equilibrium$parameter$demand$rho,
