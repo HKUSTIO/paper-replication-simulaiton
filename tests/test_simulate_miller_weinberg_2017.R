@@ -5,8 +5,6 @@ devtools::load_all(".")
 library(foreach)
 library(magrittr)
 library(codetools)
-library(doParallel)
-registerDoParallel()
 set.seed(1)
 
 # set dimension --------------------------------------------------------------- 
@@ -18,26 +16,12 @@ findGlobals(
 
 # set parameter ---------------------------------------------------------------
 
-parameter <- 
-  set_parameter(
-    constant = constant
-  )
+parameter <- set_parameter()
 findGlobals(
   set_parameter
 )
 
 # draw exogenous variable -----------------------------------------------------
-set_product_characteristics(
-  constant = constant
-  )
-
-set_market_product(
-  constant = constant
-)
-
-set_demographic(
-  constant = constant
-)
 exogenous <- 
   set_exogenous(
     constant = constant
@@ -55,264 +39,198 @@ shock <-
 findGlobals(
   set_shock
 )
-shock
 
 # set endogenous variable ------------------------------------------------------
-attach_X(
-  M = exogenous$M, 
-  X = exogenous$X
-  )
-
-attach_shock(
-  M = exogenous$M,
-  shock = shock
-)
-
-delta <- 
-  compute_delta(
-    M = exogenous$M,
-    X = exogenous$X,
-    shock = shock,
-    parameter = parameter
-  )
-delta
-
-attach_D(
-  M = exogenous$M,
-  D = exogenous$D
-)
-
-mu <- 
-  compute_mu(
-    M = exogenous$M,
-    X = exogenous$X,
-    D = exogenous$D,
-    parameter = parameter
-  )
-mu
-
-mu %>%
-  dplyr::filter(j == 1, r == 1, t == 1) %>%
-  dplyr::pull(mu) %>%
-  unique()
-
-u_df <- 
-  compute_indirect_utility(
-    delta = delta,
-    mu = mu
-  )
-
-u_df
-
-u_df <- 
-  classify_group(u_df)
-u_df
-
-u_df <-
-  adjust_utility(
-    u_df = u_df,
-    rho = parameter$rho
+x_rt <- exogenous$x[[1]][[1]]
+initial_price <- 
+  foreach (
+    t = seq_len(
+      constant$num_period_before + 
+      constant$num_period_after
     )
-u_df
+  ) %do% {
+    price_t <- 
+      foreach (
+        r = seq_len(
+          constant$num_market
+        )
+      ) %do% {
+        matrix(
+          0,
+          nrow = constant$num_firm,
+          ncol = 1
+        )
+      }
+    return(price_t)
+  }
 
-u_df <-
-  compute_group_inclusive_value(
-    u_df = u_df,
-    rho = parameter$rho
-  )
-u_df
+p_rt <- initial_price[[1]][[1]]
+xi_rt <- shock$demand$xi[[1]][[1]]
+sigma_d <- shock$demand$sigma_d   # already J x 1
+tau_d_t <- shock$demand$tau_d[1]
+d_rt <- exogenous$d[[1]][[1]] 
+rho <- 0.8
 
-
-u_df <-
-  compute_market_inclusive_value(
-    u_df = u_df
+delta_rt <- 
+    compute_delta_rt(
+        x_rt = x_rt,
+        p_rt = p_rt,
+        xi_rt = xi_rt,
+        sigma_d = sigma_d,
+        tau_d = tau_d_t,
+        parameter = parameter
     )
+delta_rt
 
-u_df
+mu_irt <- 
+    compute_mu_irt(
+        x_rt = x_rt,
+        p_rt = p_rt,
+        d_rt = d_rt,
+        num_consumer = constant$num_consumer,
+        parameter = parameter
+    )
+mu_irt
 
-u_df <- 
-  compute_share_df(
-    u_df = u_df,
-    rho = parameter$rho
-  )
-u_df
+u_irt <- 
+    compute_u_irt(
+        delta_rt = delta_rt,
+        mu_irt = mu_irt,
+        num_consumer = constant$num_consumer
+    )
+u_irt
 
-share_df <-
-  compute_market_share_df(
-    u_df = u_df
-  )
-share_df
-
-
-cost <-
-  compute_marginal_cost(
-    M = exogenous$M,
-    shock = shock,
-    parameter = parameter
-  )
-
-cost$mc
-
-omega <- 
-  set_ownership(
-    M = exogenous$M,
-    T_pre = constant$T_pre,
-    kappa = parameter$kappa
-  )
-omega
-
-omega[[1]][[2]]
-omega[[5]][[14]]
-
-compute_jacobian_rt(
-  u_df = u_df,
-  D = exogenous$D,
-  r = 1,
-  t = 1,
-  parameter = parameter
+u_irt/ (1 - parameter$rho) 
+I_i1rt <- compute_inclusive_value_i1rt(
+    u_irt = u_irt,
+    rho = rho
 )
+I_i1rt
 
-jacobian <-
-  compute_jacobian_all(
-    u_df = u_df,
-    D = exogenous$D,
-    constant = constant,
-    parameter = parameter
-  )
+I_irt <- 
+    compute_inclusive_value_irt(
+        inclusive_value_i1rt = I_i1rt,
+        rho = rho
+    )
+I_irt
+
+s_ijrt <- 
+    compute_share_ijrt(
+        u_irt = u_irt,
+        inclusive_value_i1rt = I_i1rt,
+        inclusive_value_irt = I_irt,
+        rho = rho
+    )
+s_ijrt
+
+s_jrt <- 
+    compute_market_share_jrt(
+        share_ijrt = s_ijrt
+    )
+s_jrt
+
+s_ijrt_wrapped <- 
+    compute_share_ijrt_wrapper(
+        x_rt = x_rt,
+        p_rt = p_rt,
+        xi_rt = xi_rt,
+        sigma_d = sigma_d,
+        tau_d_t = tau_d_t,
+        d_rt = d_rt,
+        num_consumer = constant$num_consumer,
+        parameter = parameter
+    )
+s_ijrt_wrapped
+
+s_jrt_wrapped <- 
+    compute_market_share_jrt(
+        share_ijrt = s_ijrt_wrapped
+    )
+s_jrt_wrapped
+
+jacobian_rt <- 
+    compute_jacobian_rt(
+        s_ijrt = s_ijrt_wrapped,
+        d_rt = d_rt,
+        parameter = parameter,
+        constant = constant
+    )
+jacobian_rt
+
+w_rt <- exogenous$w[[1]][[1]]
+sigma_s <- shock$cost$sigma_s
+tau_s_t <- shock$cost$tau_s[1]
+mu_s_r <- shock$cost$mu_s[1]
+eta_rt <- shock$cost$eta[[1]][[1]]
+eta_rt
+
+mc_rt <- 
+    compute_marginal_cost_rt(
+        w_rt = w_rt,
+        sigma_s = sigma_s,
+        tau_s_t = tau_s_t,
+        mu_s_r = mu_s_r,
+        eta_rt = eta_rt,
+        parameter = parameter
+    )
+mc_rt
+
+owner_rt <- exogenous$owner[[1]][[1]]
+owner_rt
+
+p_rt_new <- 
+    update_price_rt(
+        x_rt = x_rt,
+        w_rt = w_rt,
+        d_rt = d_rt,
+        owner_rt = owner_rt,
+        sigma_s = sigma_s,
+        tau_s_t = tau_s_t,
+        mu_s_r = mu_s_r,
+        eta_rt = eta_rt,
+        s_ijrt = s_ijrt_wrapped,
+        parameter = parameter,
+        constant = constant 
+    )
+p_rt_new
+
+initial_endogenous <- 
+    initialize_endogenous_price(
+        constant = constant
+    )
+initial_endogenous$price[[1]][[1]]
+
+endogenous <- 
+    set_endogenous(
+        constant = constant,
+        parameter = parameter,
+        exogenous = exogenous,
+        shock = shock,
+        endogenous = initial_endogenous
+    )
+endogenous$share[[1]][[1]]
+endogenous$price[[1]][[1]]
 
 
-p <- cost[cost$j>0, "p"]
-logp <- log(rep(1, dim(p)[1]))
-
-p_new <- 
-  update_price(
-    logp = logp,
-    M = exogenous$M,
-    X = exogenous$X,
-    D = exogenous$D,
-    parameter = parameter,
-    constant = constant,
-    shock = shock,
-    omega = omega
-  )
-p_new
-
-
+findGlobals(set_endogenous)
 # set equilibrium --------------------------------------------------------------
-distance <- 10000
-lambda = 1e-6
-while (distance > lambda) {
-  p_old <- p_new
-  p_new <- 
-    update_price(
-      logp = log(p_old), 
-      M = exogenous$M,
-      X = exogenous$X,
-      D = exogenous$D,
-      parameter = parameter,
-      constant = constant,
-      shock = shock,
-      omega = omega
+equilibrium <- 
+    set_equilibrium(
+        constant = constant
     )
-  distance <- max(abs(p_new - p_old))
-  print(distance)
-}
-p_equilibrium <- p_new
 
 if (!dir.exists("output/simulate")) {
     dir.create("output/simulate", 
     recursive = TRUE)
 }
 saveRDS(
-  p_equilibrium, 
-  file = "output/simulate/p_equilibrium.rds"
+  equilibrium, 
+  file = "output/simulate/equilibrium.rds"
   )
-p_equilibrium <-
-  readRDS(file = "output/simulate/p_equilibrium.rds")
+equilibrium <-
+  readRDS(file = "output/simulate/equilibrium.rds")
 
-M <- exogenous$M %>%
-  dplyr::arrange(r, t, j)  # ensure proper ordering if needed
+equilibrium$endogenous$share[[1]][[1]]
+equilibrium$endogenous$price[[1]][[1]]
 
-# Update prices for inside goods only
-M[M$j > 0, "p"] <- p_equilibrium
-
-delta <- compute_delta(
-  M = M,
-  X = exogenous$X,
-  shock = shock,
-  parameter = parameter
-)
-
-mu <- compute_mu(
-  M = M,
-  X = exogenous$X,
-  D = exogenous$D,
-  parameter = parameter
-)
-
-u_df <- compute_indirect_utility(
-  delta = delta,
-  mu = mu
-)
-
-u_df <- adjust_utility(
-  u_df = u_df,
-  rho = parameter$rho
-)
-
-u_df <- compute_group_inclusive_value(
-  u_df = u_df,
-  rho = parameter$rho
-)
-
-u_df <- compute_market_inclusive_value(
-  u_df = u_df
-)
-
-u_df <- compute_share_df(
-  u_df = u_df,
-  rho = parameter$rho
-)
-
-s_df <- compute_market_share_df(
-  u_df = u_df
-)
-
-summary_df <- 
-  M %>%
-  dplyr::filter(j > 0) %>%
-  dplyr::select(j, r, t, p) %>%
-  dplyr::left_join(
-    s_df, 
-    by = c("j", "r", "t")
-  ) %>%
-  dplyr::arrange(r, t, j)
-
-summary_df <- summary_df %>%
-  dplyr::mutate(
-    merger_status = dplyr::if_else(
-      t <= constant$T_pre, 
-      "pre", 
-      "post"
-    )
-  )
-
-summary_table <- 
-  summary_df %>%
-  dplyr::mutate(
-    merger_status = dplyr::if_else(
-      t <= constant$T_pre,
-      "pre",
-      "post"
-    )
-  ) %>%
-  dplyr::group_by(j, merger_status) %>%
-  dplyr::summarise(
-    mean_price = mean(p, na.rm = TRUE),
-    sd_price   = sd(p, na.rm = TRUE),
-    mean_share = mean(s, na.rm = TRUE),
-    sd_share   = sd(s, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  dplyr::arrange(j, merger_status)
-summary_table
+findGlobals(set_equilibrium)
