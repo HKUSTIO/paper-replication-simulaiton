@@ -207,7 +207,7 @@ findGlobals(
 mc_rt
 
 p_rt_new <- 
-  update_price_rt(
+  add_markup_rt(
     x_rt = equilibrium$exogenous$x[[t]][[r]],
     w_rt = equilibrium$exogenous$w[[t]][[r]],
     d_rt = equilibrium$exogenous$d[[t]][[r]],
@@ -224,7 +224,7 @@ p_rt_new <-
     gamma = equilibrium$parameter$cost$gamma
   )
 findGlobals(
-  update_price_rt
+  add_markup_rt
 )
 p_rt_new
 

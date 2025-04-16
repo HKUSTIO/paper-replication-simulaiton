@@ -645,7 +645,7 @@ compute_marginal_cost_rt <-
     return(mc_rt)
   }
 
-update_price_rt <-
+add_markup_rt <-
   function(
     x_rt,
     w_rt,
@@ -836,7 +836,7 @@ update_endogenous <-
                 share_ijrt = s_ijrt
               )
             price_rt <-
-              update_price_rt(
+              add_markup_rt(
                 x_rt = equilibrium$exogenous$x[[t]][[r]],
                 w_rt = equilibrium$exogenous$w[[t]][[r]],
                 d_rt = equilibrium$exogenous$d[[t]][[r]],
