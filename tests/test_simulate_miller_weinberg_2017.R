@@ -206,6 +206,12 @@ findGlobals(
 )
 mc_rt
 
+owner_rt_adj <- 
+  adjust_owner_rt_with_kappa(
+    owner_rt = equilibrium$exogenous$owner[[t]][[r]],
+    kappa = equilibrium$parameter$conduct$kappa
+  )
+
 p_rt_new <- 
   add_markup_rt(
     x_rt = equilibrium$exogenous$x[[t]][[r]],

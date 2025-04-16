@@ -551,19 +551,12 @@ compute_market_share_jrt <-
 adjust_owner_rt_with_kappa <- 
   function(
     owner_rt,
-    t,
-    constant,
-    parameter
+    kappa
   ) {
-    if (t > constant$num_period_before) {
-      kappa <- parameter$conduct$kappa
-
-      owner_rt[1, 2] <- kappa
-      owner_rt[2, 1] <- kappa
-
-      owner_rt[1, 3] <- kappa
-      owner_rt[3, 1] <- kappa
-    }
+    owner_rt[1, 2] <- kappa
+    owner_rt[2, 1] <- kappa
+    owner_rt[1, 3] <- kappa
+    owner_rt[3, 1] <- kappa
     return(owner_rt)
   }
 
@@ -743,6 +736,65 @@ set_endogenous <-
     )
   }
 
+update_price_rt <-
+  function(
+
+  ) {
+    owner_rt_adj <- 
+      adjust_owner_rt_with_kappa(
+        owner_rt = owner_rt,
+        t = t,
+        constant = equilibrium$constant,
+        parameter = equilibrium$parameter
+      )
+    s_ijrt <- 
+      compute_share_ijrt_wrapper(
+        x_rt = equilibrium$exogenous$x[[t]][[r]],
+        p_rt = equilibrium$endogenous$price[[t]][[r]],
+        xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
+        sigma_d = equilibrium$shock$demand$sigma_d,
+        tau_d_t = equilibrium$shock$demand$tau_d[[t]],
+        d_rt = equilibrium$exogenous$d[[t]][[r]],
+        num_consumer = equilibrium$constant$num_consumer,
+        alpha = equilibrium$parameter$demand$alpha,
+        beta = equilibrium$parameter$demand$beta,
+        intercept = equilibrium$parameter$demand$intercept,
+        pi_alpha = equilibrium$parameter$demand$pi_alpha,
+        pi_beta = equilibrium$parameter$demand$pi_beta,
+        rho = equilibrium$parameter$demand$rho
+      )
+    jacobian_rt <-
+      compute_jacobian_rt(
+        s_ijrt = s_ijrt,
+        d_rt = equilibrium$exogenous$d[[t]][[r]],
+        alpha = equilibrium$parameter$demand$alpha,
+        pi_alpha = equilibrium$parameter$demand$pi_alpha,
+        rho = equilibrium$parameter$demand$rho
+      )
+    s_jrt <-
+      compute_market_share_jrt(
+        share_ijrt = s_ijrt
+      )
+    price_rt <-
+      add_markup_rt(
+        x_rt = equilibrium$exogenous$x[[t]][[r]],
+        w_rt = equilibrium$exogenous$w[[t]][[r]],
+        d_rt = equilibrium$exogenous$d[[t]][[r]],
+        owner_rt = owner_rt_adj,
+        sigma_s = equilibrium$shock$cost$sigma_s,
+        tau_s_t = equilibrium$shock$cost$tau_s[[t]],
+        mu_s_r = equilibrium$shock$cost$mu_s[[r]],
+        eta_rt = equilibrium$shock$cost$eta[[t]][[r]],
+        s_jrt = s_jrt,
+        jacobian_rt = jacobian_rt,
+        alpha = equilibrium$parameter$demand$alpha,
+        pi_alpha = equilibrium$parameter$demand$pi_alpha,
+        rho = equilibrium$parameter$demand$rho,
+        gamma = equilibrium$parameter$cost$gamma
+      )
+    return(price_rt)
+  }
+
 update_endogenous <- 
   function(
     equilibrium
@@ -800,13 +852,17 @@ update_endogenous <-
               equilibrium$constant$num_market
             )
           ) %do% {
-            owner_rt_adj <- 
-              adjust_owner_rt_with_kappa(
-                owner_rt = equilibrium$exogenous$owner[[t]][[r]],
-                t = t,
-                constant = equilibrium$constant,
-                parameter = equilibrium$parameter
-              )
+            if (
+              t > equilibrium$constant$num_period_before
+            ) {
+              owner_rt <- 
+                adjust_owner_rt_with_kappa(
+                  owner_rt = equilibrium$exogenous$owner[[t]][[r]],
+                  kappa = equilibrium$parameter$conduct$kappa
+                )
+            } else {
+              owner_rt <- equilibrium$exogenous$owner[[t]][[r]]
+            }
             s_ijrt <- 
               compute_share_ijrt_wrapper(
                 x_rt = equilibrium$exogenous$x[[t]][[r]],
@@ -840,7 +896,7 @@ update_endogenous <-
                 x_rt = equilibrium$exogenous$x[[t]][[r]],
                 w_rt = equilibrium$exogenous$w[[t]][[r]],
                 d_rt = equilibrium$exogenous$d[[t]][[r]],
-                owner_rt = owner_rt_adj,
+                owner_rt = owner_rt,
                 sigma_s = equilibrium$shock$cost$sigma_s,
                 tau_s_t = equilibrium$shock$cost$tau_s[[t]],
                 mu_s_r = equilibrium$shock$cost$mu_s[[r]],
