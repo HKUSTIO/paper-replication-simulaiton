@@ -699,45 +699,9 @@ update_price_rt <-
     return(price_rt)
   }
 
-initialize_endogenous_price <- 
-  function(
-    constant
-  ) {
-    price <- 
-      foreach (
-        t = seq_len(
-          constant$num_period_before + 
-          constant$num_period_after
-        )
-      ) %do% {
-        foreach (
-          r = seq_len(
-            constant$num_market
-          )
-        ) %do% {
-          matrix(
-            0,
-            nrow = constant$num_firm,
-            ncol = 1
-          )
-        }
-      }
-
-    return(
-      list(
-        price = price
-      )
-    )
-  }
-
-
 set_endogenous <- 
   function(
-    constant,
-    parameter,
-    exogenous,
-    shock,
-    endogenous
+    constant
   ) {
     share <-
       foreach (
@@ -752,29 +716,12 @@ set_endogenous <-
               constant$num_market
             )
           ) %do% {
-            x_rt <- exogenous$x[[t]][[r]]       # J x 1
-            p_rt <- endogenous$price[[t]][[r]]  # J x 1
-            xi_rt <- shock$demand$xi[[t]][[r]]  # J x 1
-            d_rt <- exogenous$d[[t]][[r]]            # scalar
-            sigma_d <- shock$demand$sigma_d   # already J x 1
-            tau_d_t <- shock$demand$tau_d[t]  # scalar
-
-            s_ijrt <- 
-              compute_share_ijrt_wrapper(
-                x_rt = x_rt,
-                p_rt = p_rt,
-                xi_rt = xi_rt,
-                sigma_d = sigma_d,
-                tau_d_t = tau_d_t,
-                d_rt = d_rt,
-                num_consumer = constant$num_consumer,
-                parameter = parameter
+            share_rt <-
+              matrix(
+                1 / (1 + constant$num_firm),
+                nrow = constant$num_firm,
+                ncol = 1
               )
-
-            share_rt <- compute_market_share_jrt(
-              share_ijrt = s_ijrt
-            )
-  
             return(share_rt)
           }
         return(share_t)
@@ -793,49 +740,108 @@ set_endogenous <-
               constant$num_market
             )
           ) %do% {
-            x_rt <- exogenous$x[[t]][[r]]   
-            p_rt <- endogenous$price[[t]][[r]]  # J x 1
-            xi_rt <- shock$demand$xi[[t]][[r]]  # J x 1
-            d_rt <- exogenous$d[[t]][[r]]            # scalar
-            sigma_d <- shock$demand$sigma_d   # already J x 1
-            tau_d_t <- shock$demand$tau_d[t]    # J x 1
-            w_rt <- exogenous$w[[t]][[r]]
-            sigma_s <- shock$cost$sigma_s
-            tau_s_t <- shock$cost$tau_s[t]
-            mu_s_r <- shock$cost$mu_s[r]
-            eta_rt <- shock$cost$eta[[t]][[r]]
-            owner_rt <- exogenous$owner[[t]][[r]]
+            price_rt <-
+              matrix(
+                0,
+                nrow = constant$num_firm,
+                ncol = 1
+              )
+            return(price_rt)
+          }
+        return(price_t)
+      }
+
+    return(
+      list(
+        share = share,
+        price = price
+      )
+    )
+  }
+
+update_endogenous <- 
+  function(
+    equilibrium
+  ) {
+    share <-
+      foreach (
+        t = seq_len(
+          equilibrium$constant$num_period_before + 
+          equilibrium$constant$num_period_after
+        )
+      ) %do% {
+        share_t <-
+          foreach (
+            r = seq_len(
+              equilibrium$constant$num_market
+            )
+          ) %do% {
+            s_ijrt <- 
+              compute_share_ijrt_wrapper(
+                x_rt = equilibrium$exogenous$x[[t]][[r]],
+                p_rt = equilibrium$endogenous$price[[t]][[r]],
+                xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
+                sigma_d = equilibrium$shock$demand$sigma_d,
+                tau_d_t = equilibrium$shock$demand$tau_d[t],
+                d_rt = equilibrium$exogenous$d[[t]][[r]],
+                num_consumer = equilibrium$constant$num_consumer,
+                parameter = equilibrium$parameter
+              )
+
+            share_rt <- 
+              compute_market_share_jrt(
+                share_ijrt = s_ijrt
+              )
+    
+            return(share_rt)
+          }
+        return(share_t)
+      }
+
+    price <-
+      foreach (
+        t = seq_len(
+          equilibrium$constant$num_period_before + 
+          equilibrium$constant$num_period_after
+        )
+      ) %do% {
+        price_t <-
+          foreach (
+            r = seq_len(
+              equilibrium$constant$num_market
+            )
+          ) %do% {
             owner_rt_adj <- 
               adjust_owner_rt_with_kappa(
-                owner_rt = owner_rt,
+                owner_rt = equilibrium$exogenous$owner[[t]][[r]],
                 t = t,
-                constant = constant,
-                parameter = parameter
+                constant = equilibrium$constant,
+                parameter = equilibrium$parameter
               )
             s_ijrt <- 
               compute_share_ijrt_wrapper(
-                x_rt = x_rt,
-                p_rt = p_rt,
-                xi_rt = xi_rt,
-                sigma_d = sigma_d,
-                tau_d_t = tau_d_t,
-                d_rt = d_rt,
-                num_consumer = constant$num_consumer,
-                parameter = parameter
+                x_rt = equilibrium$exogenous$x[[t]][[r]],
+                p_rt = equilibrium$endogenous$price[[t]][[r]],
+                xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
+                sigma_d = equilibrium$shock$demand$sigma_d,
+                tau_d_t = equilibrium$shock$demand$tau_d[[t]],
+                d_rt = equilibrium$exogenous$d[[t]][[r]],
+                num_consumer = equilibrium$constant$num_consumer,
+                parameter = equilibrium$parameter
               )
             price_rt <-
               update_price_rt(
-                x_rt = x_rt,
-                w_rt = w_rt,
-                d_rt = d_rt,
+                x_rt = equilibrium$exogenous$x[[t]][[r]],
+                w_rt = equilibrium$exogenous$w[[t]][[r]],
+                d_rt = equilibrium$exogenous$d[[t]][[r]],
                 owner_rt = owner_rt_adj,
-                sigma_s = sigma_s,
-                tau_s_t = tau_s_t,
-                mu_s_r = mu_s_r,
-                eta_rt = eta_rt,
+                sigma_s = equilibrium$shock$cost$sigma_s,
+                tau_s_t = equilibrium$shock$cost$tau_s[[t]],
+                mu_s_r = equilibrium$shock$cost$mu_s[[r]],
+                eta_rt = equilibrium$shock$cost$eta[[t]][[r]],
                 s_ijrt = s_ijrt,
-                parameter = parameter,
-                constant = constant
+                parameter = equilibrium$parameter,
+                constant = equilibrium$constant
               )
             return(price_rt)
           }
@@ -878,9 +884,27 @@ set_equilibrium <-
     # set endogenous variable ------------------------------------------------------
 
     endogenous <- 
-      initialize_endogenous_price(
+      set_endogenous(
         constant = constant
       )
+
+    return(
+      list(
+        constant = constant,
+        parameter = parameter,
+        exogenous = exogenous,
+        shock = shock,
+        endogenous = endogenous
+      )
+    )
+  }
+
+solve_equilibrium <- 
+  function(
+    equilibrium,
+    lambda = 1e-6,
+    max_iter = 10000
+  ) {
 
     distance <- 10000
     iter <- 0
@@ -888,14 +912,10 @@ set_equilibrium <-
     while (distance > lambda && iter < max_iter) {
 
       endogenous_new <- 
-        set_endogenous(
-          constant = constant,
-          parameter = parameter,
-          exogenous = exogenous,
-          shock = shock,
-          endogenous = endogenous
+        update_endogenous(
+          equilibrium = equilibrium
         )
-      p_old <- endogenous$price
+      p_old <- equilibrium$endogenous$price
       p_new <- endogenous_new$price
 
       distance <- 
@@ -922,7 +942,7 @@ set_equilibrium <-
 
       print(distance)
       iter <- iter + 1
-      endogenous <- endogenous_new
+      equilibrium$endogenous <- endogenous_new
     }
 
     if (iter == max_iter) {
@@ -930,12 +950,7 @@ set_equilibrium <-
     }
 
     return(
-      list(
-        parameter = parameter,
-        exogenous = exogenous,
-        shock = shock,
-        endogenous = endogenous
-      )
+      equilibrium
     )
   }
 
