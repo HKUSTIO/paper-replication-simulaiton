@@ -15,17 +15,14 @@ We try to replicate the paper Miller, Nathan H., and Matthew C. Weinberg. "Under
 # Load Packages
 
 ```{r}
-library(ggplot2)
 library(magrittr)
 devtools::load_all()
 library(foreach)
-library(doParallel)
-registerDoParallel()
 set.seed(1)
 ```
 
 # Dimension
-We first set up the following dimension for simulation. There are $R$ regions and $T = T_{pre} + T_{post}$ periods, where $T_{pre}$ is the number periods before the merger and $T_{post}$ is number the periods after the merger. Combination of region $r$ and period $t$ forms a market. Each market has $N$ consumers and $J$ products. Each product contains $1 + K_x$ dimensions of observed product characteristics, where the first dimension is an intercept. Also, each product contains $K_w$ dimensions of cost factors.
+We first set up the following dimension for simulation. There are $R$ regions and $T = T_{pre} + T_{post}$ periods, where $T_{pre}$ is the number periods before the merger and $T_{post}$ is number the periods after the merger. Combination of region $r$ and period $t$ forms a market. Each market has $N$ consumers and $J$ products. Each product contains $1$ dimension of observed product characteristics. Also, each product contains $1$ dimension of cost factors.
 
 ```{r}
 constant <-
@@ -47,7 +44,7 @@ $$
 mc_{jrt} = w_{jrt} \gamma + \sigma_j^S + \tau_t^S + \mu_r^S + \eta_{jrt}.
 $$
 
-Here the parameters of interest is $\gamma$. We take the first dimension of the cost factor to be the indicator for product from firm 2 or firm 3 post-merger (i.e. MillerCoors).
+Here the parameters of interest is $\gamma$. Note that in the paper, their first dimension of the cost factor to be the indicator for product from firm 2 or firm 3 post-merger (i.e. MillerCoors). However, we simply treat it as a random variable drawn from normal distribution.
 
 Also, in the post-merger ownership matrix
 $$ 
@@ -62,47 +59,11 @@ $$
 
 The parameter of interest here is $\kappa$.
 
-```{r}
-parameter <- 
-  set_parameter(constant)
-parameter
-``` 
-
 # Exogenous Variables
-We proceed to draw exogenous variables. Demand-side exogenous variables include observed product characteristics $x_j$, fixed effect $\sigma_j^D$ and $\tau_t^D$. Supply-side exogenous variables include cost factors $w_{jrt}$, fixed effect $\sigma_j^S$, $\tau_t^S$ and $\mu_r^S$. Also, we have the demographic heterogeneity $D_i$, which is drawn at market level $(r, t)$. We store the observed product characteristics $x_j$ in the dataframe $X$, market-product charateristics, including cost factors and all fixed effect in $M$ and demographic heterogeneity in $D$. We also initialize a column for price $p$ in dataframe $M$ for later usage.
-
-
-```{r}
-X <-
-  set_product_characteristics(
-    constant = constant
-    )
-
-M <- 
-  set_market_product(
-    constant = constant
-  )
-
-D <- 
-  set_demographic(
-    constant = constant
-)
-
-exogenous <- 
-  set_exogenous(constant)
-
-exogenous
-``` 
+We proceed to draw exogenous variables. Demand-side exogenous variable is the observed product characteristics $x_j$ and the demographic heterogeneity $D_i$, which is drawn at market level $(r, t)$. Supply-side exogenous variable is cost factors $w_{jrt}$.
 
 # Shock
-We proceed to draw shocks. They are $\xi$ in the demand side and $\eta$ in the cost side.
-
-```{r}
-shock <- 
-  set_shock(constant)
-
-shock
-``` 
+Demand-side shocks are produce fixed effect $\sigma_j^D$ and time fixed effect $\tau_t^D$. Supply-side shocks are product fixed effect $\sigma_j^S$,  time fixed effect $\tau_t^S$ and region fixed effect $\mu_r^S$. We also draw unobserved product charateristics $\xi$ and unobserved cost factor $\eta$.
 
 # Endogenous Variables
 There are two key endogenous variables in this model. The first one is the market share for each product $j$ in each market $(r, t)$. To obtain it, we first compute the following market-level mean indirect utility for product $j$,
@@ -111,274 +72,140 @@ $$
 \delta_{jrt} = x_j \beta + \alpha p_{jrt} + \sigma_j^D + \tau_j^D + \xi_{jrt}.
 $$
 
-```{r}
-delta <- 
-  compute_delta(
-    M = exogenous$M,
-    X = exogenous$X,
-    shock = shock,
-    parameter = parameter
-  )
-delta
-``` 
-
 We also compute the individual level deviation from the market-level mean indirect utility,
 $$
 \mu_{ijrt} = [p_{jrt}, x_j]' * \Pi D_i
 $$
 
-```{r}
-mu <- 
-  compute_mu(
-    M = exogenous$M,
-    X = exogenous$X,
-    D = exogenous$D,
-    parameter = parameter
-  )
-mu
-``` 
 
 Since the heterogeneity is at market level, we expect to see identical deviation for distinct individuals in the same market.
 
-We can then compute the mean indirect utility for each consumer $i$ in each market $(r, t)$ for each product $j$
-```{r}
-u_df <- 
-  compute_indirect_utility(
-    delta = delta,
-    mu = mu
-  )
-u_df
-``` 
+We can then compute the mean indirect utility for each consumer $i$ in each market $(r, t)$ for each product $j$,
+$$
+u_{ijrt} = \delta_{jrt} + \mu_{ijrt}.
+$$
 
 From this we obtain the individual optimal choice probability by the following equation
 $$
-s_{ijrt} = \frac{exp((\delta_{jrt} + \mu_{ijrt})/(1 - \rho))}{exp(I_{igrt}/(1 - \rho))} \frac{exp(I_{igrt})}{exp(I_{irt})}.
-$$,
+s_{ijrt} = \frac{exp((\delta_{jrt} + \mu_{ijrt})/(1 - \rho))}{exp(I_{igrt}/(1 - \rho))} \frac{exp(I_{igrt})}{exp(I_{irt})},
+$$
+
 where $I_{igrt}$ is the inclusive values for group $g$ goods,
+
 $$
 I_{igrt} = \begin{cases} 0, & \quad \text{if } g = 0,\\
 (1 - \rho) log \sum_{j = 1}^{J_{rt}} exp((\delta_jrt + \mu_{ijrt}) / (1 - \rho)), & \quad \text{if } g = 1.
 \end{cases}
 $$
 
-```{r}
-u_df <- 
-  classify_group(u_df)
-
-u_df <-
-  adjust_utility(
-    u_df = u_df,
-    rho = parameter$rho
-    )
-
-u_df <-
-  compute_group_inclusive_value(
-    u_df = u_df,
-    rho = parameter$rho
-  )
-
-u_df <-
-  compute_market_inclusive_value(
-    u_df = u_df
-    )
-
-u_df <- 
-  compute_share_df(
-    u_df = u_df,
-    rho = parameter$rho
-  )
-
-u_df
-``` 
-
 The market share of product $j$ in market $(r, t)$ is the mean of the individual optimal choice probability,
 $$
 s_{jrt} = \frac{1}{N_{rt}} \sum_{i = 1}^{N_{rt}} s_{ijrt}.
 $$
 
-```{r}
-share_df <-
-  compute_share_df(
-    u_df = u_df
-  )
-share_df
-``` 
-
 The second endogenous variable is price from firm. The optimal pricing condition is given by 
 $$
-p_t = mc_t - \left[ \Omega_t(\kappa) \circ \left( \frac{\partial s_t(p_t; \theta^D)}{\partial p_t} \right)^T \right]^{-1} s_t(p_t; \theta^D).
+p_t = mc_t - \left[ \Omega_t(\kappa) \circ \left( \frac{\partial s_t(p_t; \theta^D)}{\partial p_t} \right)^T \right]^{-1} s_t(p_t; \theta^D),
 $$
 
-We first setup the ownership matrix $\Omega$
-```{r}
-omega <- 
-  set_ownership(
-    M = exogenous$M,
-    T_pre = constant$T_pre,
-    kappa = parameter$kappa
-  )
-omega[[1]][[2]]
-omega[[5]][[14]]
-``` 
+where $\frac{\partial s_t(p_t; \theta^D)}{\partial p_t}$ is the jacobian matrix of the market share of product with respect to the market price of product. We first define the choice probability for inside goods and the choice probability for product $j$ condition on inside goods respectively,
+$$
+s_{irt,1} \equiv  \frac{exp(I_{igrt})}{exp(I_{irt})},
+$$
+and
+$$
+s_{ijrt | 1} \equiv \frac{exp((\delta_{jrt} + \mu_{ijrt})/(1 - \rho))}{exp(I_{igrt}/(1 - \rho))}.
+$$
 
-We first obtain the marginal cost,
-```{r}
-cost <-
-  compute_marginal_cost(
-    M = exogenous$M,
-    shock = shock,
-    parameter = parameter
-  )
-
-cost$mc %>% head()
-``` 
-
-we also obtain the derivative,
-```{r}
-jacobian <-
-  compute_jacobian_all(
-    u_df = u_df,
-    D = exogenous$D,
-    constant = constant,
-    parameter = parameter
-  )
-
-jacobian[[1]][[1]]
-jacobian[[5]][[13]]
-``` 
-
-The function update_price first compute the marginal cost, then, base on the price given to the function, it computes the share, the derivatives of the shares with respect to price and the new optimal price.
-```{r}
-p <- cost[cost$j>0, "p"]
-logp <- log(rep(1, dim(p)[1]))
-
-p_new <- 
-  update_price(
-    logp = logp,
-    M = exogenous$M,
-    X = exogenous$X,
-    D = exogenous$D,
-    parameter = parameter,
-    constant = constant,
-    shock = shock,
-    omega = omega
-  )
-p_new %>% head()
-``` 
+The $(j, k)$ entry of the jacobian matrix $\frac{\partial s_t(p_t; \theta^D)}{\partial p_t}$ is
+$$
+\frac{\partial s_{jrt}}{\partial p_k} = \frac{1}{N_{rt}} \sum_{i = 1}^{N_{rt}} \alpha_i s_{ijrt} \left( \frac{1}{1 - \rho} (\mathbb{1}_{\{j = k\}} - s_{ikrt| 1})  + s_{irt, 0} s_{ikrt| 1} \right).
+$$
 
 
 # Equilibrium
-The equilibrium condition is given by a vector of market share $s^*$ and a vector of price $p^*$ where both are optimally computed through the aforementioned ways. Hence, we repeat the step of updating price until a stable price $p^*$.
+The equilibrium condition is given by a vector of market share $s^*$ and a vector of price $p^*$ where both are optimally decided.
 
 ```{r}
-distance <- 10000
-lambda = 1e-6
-while (distance > lambda) {
-  p_old <- p_new
-  p_new <- 
-    update_price(
-      logp = log(p_old), 
-      M = exogenous$M,
-      X = exogenous$X,
-      D = exogenous$D,
-      parameter = parameter,
-      constant = constant,
-      shock = shock,
-      omega = omega
-    )
-  distance <- max(abs(p_new - p_old))
-  print(distance)
-}
-p_equilibrium <- p_new
-p_equilibrium %>% head()
+equilibrium <- 
+  set_equilibrium(
+    constant = constant
+  )
+
+equilibrium <- 
+  solve_equilibrium(
+    equilibrium = equilibrium
+  )
+
+equilibrium$endogenous$price[[1]][[1]]
+equilibrium$endogenous$share[[1]][[1]]
 ```
 
 # Summarize variables
 ```{r}
-M <- exogenous$M %>%
-  dplyr::arrange(r, t, j)  # ensure proper ordering if needed
+equilibrium_summary <- list()
 
-# Update prices for inside goods only
-M[M$j > 0, "p"] <- p_equilibrium
+T_pre <- 
+  seq_len(
+    constant$num_period_before
+  )
 
-delta <- compute_delta(
-  M = M,
-  X = exogenous$X,
-  shock = shock,
-  parameter = parameter
-)
+T_post <- 
+  seq(
+    constant$num_period_before + 1,
+    constant$num_period_before + constant$num_period_after
+  )
 
-mu <- compute_mu(
-  M = M,
-  X = exogenous$X,
-  D = exogenous$D,
-  parameter = parameter
-)
+equilibrium_summary$average_pre_merge_price <- 
+  average_firm_metric(
+    equilibrium$endogenous$price,
+    T_pre
+  )
 
-u_df <- compute_indirect_utility(
-  delta = delta,
-  mu = mu
-)
+equilibrium_summary$average_post_merge_price <- 
+  average_firm_metric(
+    equilibrium$endogenous$price,
+    T_post
+  )
 
-u_df <- adjust_utility(
-  u_df = u_df,
-  rho = parameter$rho
-)
+equilibrium_summary$average_pre_merge_share <- 
+  average_firm_metric(
+    equilibrium$endogenous$share,
+    T_pre
+  )
 
-u_df <- compute_group_inclusive_value(
-  u_df = u_df,
-  rho = parameter$rho
-)
-
-u_df <- compute_market_inclusive_value(
-  u_df = u_df
-)
-
-u_df <- compute_share_df(
-  u_df = u_df,
-  rho = parameter$rho
-)
-
-s_df <- compute_share_df(
-  u_df = u_df
-)
-
-summary_df <- 
-  M %>%
-  dplyr::filter(j > 0) %>%
-  dplyr::select(j, r, t, p) %>%
-  dplyr::left_join(
-    s_df, 
-    by = c("j", "r", "t")
-  ) %>%
-  dplyr::arrange(r, t, j)
-
-summary_df <- summary_df %>%
-  dplyr::mutate(
-    merger_status = dplyr::if_else(
-      t <= constant$T_pre, 
-      "pre", 
-      "post"
-    )
+equilibrium_summary$average_post_merge_share <- 
+  average_firm_metric(
+    equilibrium$endogenous$share,
+    T_post
   )
 
 summary_table <- 
-  summary_df %>%
-  dplyr::mutate(
-    merger_status = dplyr::if_else(
-      t <= constant$T_pre,
-      "pre",
-      "post"
-    )
-  ) %>%
-  dplyr::group_by(j, merger_status) %>%
-  dplyr::summarise(
-    mean_price = mean(p, na.rm = TRUE),
-    sd_price   = sd(p, na.rm = TRUE),
-    mean_share = mean(s, na.rm = TRUE),
-    sd_share   = sd(s, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  dplyr::arrange(j, merger_status)
-summary_table
+  data.frame(
+    Firm = seq_len(constant$num_firm),
+    Avg_Price_Pre = equilibrium_summary$average_pre_merge_price,
+    Avg_Price_Post = equilibrium_summary$average_post_merge_price,
+    Price_Change_Pct = 
+      100 * 
+      (
+        equilibrium_summary$average_post_merge_price - 
+        equilibrium_summary$average_pre_merge_price
+      ) / equilibrium_summary$average_pre_merge_price,
+    Avg_Share_Pre = equilibrium_summary$average_pre_merge_share,
+    Avg_Share_Post = equilibrium_summary$average_post_merge_share,
+    Share_Change_Pct = 
+      100 * 
+      (
+        equilibrium_summary$average_post_merge_share - 
+        equilibrium_summary$average_pre_merge_share
+      ) / equilibrium_summary$average_pre_merge_share
+  )
+
+summary_table <- 
+  round(
+    summary_table,
+    4
+  )
+
+print(summary_table)
 ```

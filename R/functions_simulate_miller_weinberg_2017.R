@@ -30,7 +30,6 @@ set_parameter <-
 
   ) {
     alpha <- -0.1
-    intercept <- 3
     beta <- 1
     rho <- 0.1
     pi_alpha <- 0.01
@@ -41,7 +40,6 @@ set_parameter <-
     demand <-
       list(
         alpha = alpha,
-        intercept = intercept,
         beta = beta,
         rho = rho,
         pi_alpha = pi_alpha,
@@ -320,11 +318,9 @@ compute_delta_rt <-
     sigma_d,
     tau_d_t,
     alpha,
-    beta,
-    intercept
+    beta
   ) {
     delta <- 
-      intercept +
       x_rt * beta +
       price_rt * alpha +
       xi_rt +
@@ -410,14 +406,13 @@ compute_inclusive_value_i1rt <-
 
 compute_inclusive_value_irt <- 
   function(
-    inclusive_value_i1rt,
-    rho
+    inclusive_value_i1rt
   ) {
     inclusive_value_irt <- 
       log(
         1 + 
           exp(
-            inclusive_value_i1rt / (1 - rho)
+            inclusive_value_i1rt
           )
       )
 
@@ -467,7 +462,6 @@ compute_share_irt_wrapper <-
     num_consumer,
     alpha,
     beta,
-    intercept,
     pi_alpha,
     pi_beta,
     rho
@@ -480,8 +474,7 @@ compute_share_irt_wrapper <-
         sigma_d = sigma_d,
         tau_d_t = tau_d_t,
         alpha = alpha,
-        beta = beta,
-        intercept = intercept
+        beta = beta
       )
 
     mu_irt <- 
@@ -520,8 +513,7 @@ compute_share_irt_wrapper <-
 
       inclusive_irt <- 
         compute_inclusive_value_irt(
-          inclusive_value_i1rt = inclusive_i1rt,
-          rho = rho
+          inclusive_value_i1rt = inclusive_i1rt
         )
 
       s_irt <- 
@@ -560,7 +552,6 @@ compute_share_rt_wrapper <-
     num_consumer,
     alpha,
     beta,
-    intercept,
     pi_alpha,
     pi_beta,
     rho
@@ -576,7 +567,6 @@ compute_share_rt_wrapper <-
         num_consumer = num_consumer,
         alpha = alpha,
         beta = beta,
-        intercept = intercept,
         pi_alpha = pi_alpha,
         pi_beta = pi_beta,
         rho = rho
@@ -608,56 +598,45 @@ compute_jacobian_rt <-
     pi_alpha,
     rho
   ) {
-    J <- nrow(s_irt)
-    N <- ncol(s_irt)
+  J <- nrow(s_irt)
+  N <- ncol(s_irt)
 
-    alpha_i <- 
-      alpha + 
-      pi_alpha * d_rt
+  alpha_i <- 
+    as.vector(
+      alpha + pi_alpha * d_rt
+    )
+  s_i1 <- colSums(s_irt)
+  s_i0 <- 1 - s_i1
+  s_cond <- 
+    s_irt / 
+    matrix(
+      s_i1, 
+      nrow = J, 
+      ncol = N, 
+      byrow = TRUE
+    )
 
-    alpha_mat <- 
-      matrix(
-        alpha_i,
-        nrow = J,
-        ncol = N,
-        byrow = TRUE
-      )
+  inv_L <- 1 / (1 - rho)
 
-    if (rho != 1) {
-      alpha_mat <- 
-        alpha_mat / (1 - rho)
+  jac <- 
+    matrix(
+    0, 
+    J, 
+    J
+    )
+
+  for (j in 1: J) {
+    s_ij <- s_irt[j, ]
+    for (k in 1: J) {
+      deriv_i <-
+        alpha_i * s_ij *
+        ( ((j == k) - s_cond[k, ]) * inv_L +
+          s_i0 * s_cond[k, ])
+      jac[j, k] <- mean(deriv_i)
     }
-
-    jacobian <- 
-      matrix(
-        0,
-        nrow = J,
-        ncol = J
-      )
-
-    for (j in 1:J) {
-      s_j <- s_irt[j, ]
-
-      for (k in 1:J) {
-        s_k <- s_irt[k, ]
-
-        if (j == k) {
-          deriv_i <- 
-            alpha_mat[j, ] * 
-            s_j * (1 - s_j)
-        } else {
-          deriv_i <- 
-            - alpha_mat[j, ] * 
-            s_j * s_k
-        }
-
-        jacobian[j, k] <- 
-          mean(deriv_i)
-      }
-    }
-
-    return(jacobian)
   }
+  jac
+}
 
 compute_marginal_cost_rt <- 
   function(
@@ -793,7 +772,6 @@ update_price_rt <-
     num_consumer,
     alpha,
     beta,
-    intercept,
     pi_alpha,
     pi_beta,
     rho,
@@ -810,7 +788,6 @@ update_price_rt <-
         num_consumer = num_consumer,
         alpha = alpha,
         beta = beta,
-        intercept = intercept,
         pi_alpha = pi_alpha,
         pi_beta = pi_beta,
         rho = rho
@@ -864,7 +841,6 @@ solve_endogenous_rt <-
     num_consumer,
     alpha,
     beta,
-    intercept,
     pi_alpha,
     pi_beta,
     rho,
@@ -891,7 +867,6 @@ solve_endogenous_rt <-
             num_consumer = num_consumer,
             alpha = alpha,
             beta = beta,
-            intercept = intercept,
             pi_alpha = pi_alpha,
             pi_beta = pi_beta,
             rho = rho,
@@ -920,7 +895,6 @@ solve_endogenous_rt <-
         num_consumer = num_consumer,
         alpha = alpha,
         beta = beta,
-        intercept = intercept,
         pi_alpha = pi_alpha,
         pi_beta = pi_beta,
         rho = rho
@@ -1009,7 +983,7 @@ solve_equilibrium <-
                 x_rt = equilibrium$exogenous$x[[t]][[r]],
                 w_rt = equilibrium$exogenous$w[[t]][[r]],
                 d_rt = equilibrium$exogenous$d[[t]][[r]],
-                owner_rt = equilibrium$exogenous$owner[[t]][[r]],
+                owner_rt = owner_rt,
                 price_rt = equilibrium$endogenous$p[[t]][[r]],
                 xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
                 sigma_d = equilibrium$shock$demand$sigma_d,
@@ -1021,7 +995,6 @@ solve_equilibrium <-
                 num_consumer = equilibrium$constant$num_consumer,
                 alpha = equilibrium$parameter$demand$alpha,
                 beta = equilibrium$parameter$demand$beta,
-                intercept = equilibrium$parameter$demand$intercept,
                 pi_alpha = equilibrium$parameter$demand$pi_alpha,
                 pi_beta = equilibrium$parameter$demand$pi_beta,
                 rho = equilibrium$parameter$demand$rho,

@@ -20,6 +20,11 @@ equilibrium <-
     constant = constant
   )
 
+equilibrium <- 
+  solve_equilibrium(
+    equilibrium = equilibrium
+  )
+
 if (!dir.exists("output/simulate")) {
     dir.create("output/simulate", 
     recursive = TRUE)
@@ -32,9 +37,6 @@ equilibrium <-
   readRDS(file = "output/simulate/equilibrium.rds")
 
 # Summary on Equilibrium ---------------------------------------------------
-equilibrium$endogenous$price[[1]][[1]]
-
-
 equilibrium_summary <- list()
 
 T_pre <- 

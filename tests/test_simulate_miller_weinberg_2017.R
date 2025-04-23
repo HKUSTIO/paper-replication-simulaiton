@@ -72,8 +72,7 @@ delta_rt <-
     sigma_d = equilibrium$shock$demand$sigma_d,
     tau_d = equilibrium$shock$demand$tau_d[[t]],
     alpha = equilibrium$parameter$demand$alpha,
-    beta = equilibrium$parameter$demand$beta,
-    intercept = equilibrium$parameter$demand$intercept
+    beta = equilibrium$parameter$demand$beta
   )
 findGlobals(
   compute_delta_rt
@@ -120,8 +119,7 @@ inclusive_i1rt
 
 inclusive_irt <- 
   compute_inclusive_value_irt(
-    inclusive_value_i1rt = inclusive_i1rt,
-    rho = equilibrium$parameter$demand$rho
+    inclusive_value_i1rt = inclusive_i1rt
   )
 findGlobals(
   compute_inclusive_value_irt
@@ -160,7 +158,6 @@ s_irt_wrapped <-
     num_consumer = constant$num_consumer,
     alpha = equilibrium$parameter$demand$alpha,
     beta = equilibrium$parameter$demand$beta,
-    intercept = equilibrium$parameter$demand$intercept,
     pi_alpha = equilibrium$parameter$demand$pi_alpha,
     pi_beta = equilibrium$parameter$demand$pi_beta,
     rho = equilibrium$parameter$demand$rho
@@ -181,7 +178,6 @@ share_rt <-
     num_consumer = constant$num_consumer,
     alpha = equilibrium$parameter$demand$alpha,
     beta = equilibrium$parameter$demand$beta,
-    intercept = equilibrium$parameter$demand$intercept,
     pi_alpha = equilibrium$parameter$demand$pi_alpha,
     pi_beta = equilibrium$parameter$demand$pi_beta,
     rho = equilibrium$parameter$demand$rho
@@ -199,10 +195,132 @@ jacobian_rt <-
     pi_alpha = equilibrium$parameter$demand$pi_alpha,
     rho = equilibrium$parameter$demand$rho
   )
+# Define a function to numerically calculate the derivatives
+share_rt_fun <- 
+  function(price_rt) {
+    s_irt <- compute_share_irt_wrapper(
+      x_rt = equilibrium$exogenous$x[[t]][[r]],
+      d_rt = equilibrium$exogenous$d[[t]][[r]],
+      price_rt = price_rt,
+      xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
+      sigma_d = equilibrium$shock$demand$sigma_d,
+      tau_d_t = equilibrium$shock$demand$tau_d[[t]],
+      num_consumer = constant$num_consumer,
+      alpha = equilibrium$parameter$demand$alpha,
+      beta = equilibrium$parameter$demand$beta,
+      pi_alpha = equilibrium$parameter$demand$pi_alpha,
+      pi_beta = equilibrium$parameter$demand$pi_beta,
+      rho = equilibrium$parameter$demand$rho
+    )
+    compute_share_rt(s_irt)[, 1]
+  }
+
+jacobian_rt_numerical <-
+  numDeriv::jacobian(
+    func = share_rt_fun,
+    x = equilibrium$endogenous$p[[t]][[r]],
+    method = "complex",
+  )
 findGlobals(
   compute_jacobian_rt
 )
 jacobian_rt
+jacobian_rt_numerical
+
+jac_long <-
+  foreach::foreach(
+    tt = seq_along(equilibrium$exogenous$x),
+    .combine = "rbind"
+  ) %do% {
+
+    foreach::foreach(
+      rr = seq_along(equilibrium$exogenous$x[[tt]]),
+      .combine = "rbind"
+    ) %do% {
+
+      s_irt_wrapped <-
+        compute_share_irt_wrapper(
+          x_rt         = equilibrium$exogenous$x[[tt]][[rr]],
+          d_rt         = equilibrium$exogenous$d[[tt]][[rr]],
+          price_rt     = equilibrium$endogenous$price[[tt]][[rr]],
+          xi_rt        = equilibrium$shock$demand$xi[[tt]][[rr]],
+          sigma_d      = equilibrium$shock$demand$sigma_d,
+          tau_d_t      = equilibrium$shock$demand$tau_d[[tt]],
+          num_consumer = constant$num_consumer,
+          alpha        = equilibrium$parameter$demand$alpha,
+          beta         = equilibrium$parameter$demand$beta,
+          pi_alpha     = equilibrium$parameter$demand$pi_alpha,
+          pi_beta      = equilibrium$parameter$demand$pi_beta,
+          rho          = equilibrium$parameter$demand$rho
+        )
+
+      jac_ana <-
+        compute_jacobian_rt(
+          s_irt    = s_irt_wrapped,
+          d_rt     = equilibrium$exogenous$d[[tt]][[rr]],
+          alpha    = equilibrium$parameter$demand$alpha,
+          pi_alpha = equilibrium$parameter$demand$pi_alpha,
+          rho      = equilibrium$parameter$demand$rho
+        )
+
+      share_fun <-
+        function(price_vec) {
+          s_irt <-
+            compute_share_irt_wrapper(
+              x_rt         = equilibrium$exogenous$x[[tt]][[rr]],
+              d_rt         = equilibrium$exogenous$d[[tt]][[rr]],
+              price_rt     = price_vec,
+              xi_rt        = equilibrium$shock$demand$xi[[tt]][[rr]],
+              sigma_d      = equilibrium$shock$demand$sigma_d,
+              tau_d_t      = equilibrium$shock$demand$tau_d[[tt]],
+              num_consumer = constant$num_consumer,
+              alpha        = equilibrium$parameter$demand$alpha,
+              beta         = equilibrium$parameter$demand$beta,
+              pi_alpha     = equilibrium$parameter$demand$pi_alpha,
+              pi_beta      = equilibrium$parameter$demand$pi_beta,
+              rho          = equilibrium$parameter$demand$rho
+            )
+          compute_share_rt(s_irt)[, 1]
+        }
+
+      jac_num <-
+        numDeriv::jacobian(
+          func   = share_fun,
+          x      = equilibrium$endogenous$price[[tt]][[rr]],
+          method = "Richardson"
+        )
+
+      data.frame(
+        Numerical  = as.vector(jac_num),
+        Analytical = as.vector(jac_ana),
+        period     = tt,    # kept for reference / colouring
+        market     = rr
+      )
+    }
+  }
+
+ggplot2::ggplot(
+  jac_long,
+  ggplot2::aes(
+    x      = Numerical,
+    y      = Analytical
+  )
+) +
+  ggplot2::geom_point(alpha = 0.55) +
+  ggplot2::geom_abline(
+    slope     = 1,
+    intercept = 0,
+    colour    = "red",
+    linewidth = 1
+  ) +
+  ggplot2::coord_equal() +
+  ggplot2::guides(colour = "none") +     
+  ggplot2::labs(
+    title = "Analytical vs numerical Jacobian (all markets & periods)",
+    x     = "Numerical derivative",
+    y     = "Analytical derivative"
+  ) +
+  ggplot2::theme_minimal()
 
 mc_rt <- 
   compute_marginal_cost_rt(
@@ -263,7 +381,6 @@ p_rt_new <-
     num_consumer = constant$num_consumer,
     alpha = equilibrium$parameter$demand$alpha,
     beta = equilibrium$parameter$demand$beta,
-    intercept = equilibrium$parameter$demand$intercept,
     pi_alpha = equilibrium$parameter$demand$pi_alpha,
     pi_beta = equilibrium$parameter$demand$pi_beta,
     rho = equilibrium$parameter$demand$rho,
@@ -282,7 +399,7 @@ endogenous_rt <-
     w_rt = equilibrium$exogenous$w[[t]][[r]],
     d_rt = equilibrium$exogenous$d[[t]][[r]],
     owner_rt = equilibrium$exogenous$owner[[t]][[r]],
-    price_rt = equilibrium$endogenous$p[[t]][[r]],
+    price_rt = equilibrium$endogenous$price[[t]][[r]],
     xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
     sigma_d = equilibrium$shock$demand$sigma_d,
     tau_d_t = equilibrium$shock$demand$tau_d[[t]],
@@ -293,7 +410,6 @@ endogenous_rt <-
     num_consumer = constant$num_consumer,
     alpha = equilibrium$parameter$demand$alpha,
     beta = equilibrium$parameter$demand$beta,
-    intercept = equilibrium$parameter$demand$intercept,
     pi_alpha = equilibrium$parameter$demand$pi_alpha,
     pi_beta = equilibrium$parameter$demand$pi_beta,
     rho = equilibrium$parameter$demand$rho,
@@ -309,7 +425,7 @@ equilibrium <-
   solve_equilibrium(
     equilibrium = equilibrium
   )
-findGLobals(
+findGlobals(
   solve_equilibrium
 )
 
