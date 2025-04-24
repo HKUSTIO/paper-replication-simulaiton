@@ -30,7 +30,6 @@ set_parameter <-
 
   ) {
     alpha <- -0.1
-    intercept <- 3
     beta <- 1
     rho <- 0.1
     pi_alpha <- 0.01
@@ -41,7 +40,6 @@ set_parameter <-
     demand <-
       list(
         alpha = alpha,
-        intercept = intercept,
         beta = beta,
         rho = rho,
         pi_alpha = pi_alpha,
@@ -315,25 +313,16 @@ set_shock <-
 compute_delta_rt <- 
   function(
     x_rt,
-    p_rt,
+    price_rt,
     xi_rt,
     sigma_d,
     tau_d_t,
-    parameter
+    alpha,
+    beta
   ) {
-    beta <- 
-      parameter$demand$beta
-
-    alpha <- 
-      parameter$demand$alpha
-
-    intercept <- 
-      parameter$demand$intercept
-
     delta <- 
-      intercept +
       x_rt * beta +
-      p_rt * alpha +
+      price_rt * alpha +
       xi_rt +
       sigma_d +
       matrix(
@@ -341,7 +330,6 @@ compute_delta_rt <-
         nrow = nrow(x_rt),
         ncol = 1
       )
-
     return(
       delta
     )
@@ -350,13 +338,12 @@ compute_delta_rt <-
 compute_mu_irt <- 
   function(
     x_rt,
-    p_rt,
     d_rt,
+    price_rt,
     num_consumer,
-    parameter
+    pi_alpha,
+    pi_beta
   ) {
-    pi_beta <- parameter$demand$pi_beta
-    pi_alpha <- parameter$demand$pi_alpha
 
     d_vec <- 
       matrix(
@@ -369,7 +356,7 @@ compute_mu_irt <-
       x_rt %*% t(d_vec) * pi_beta    # J x N
 
     p_term <- 
-      p_rt %*% t(d_vec) * pi_alpha   # J x N
+      price_rt %*% t(d_vec) * pi_alpha   # J x N
 
     mu_irt <- 
       x_term + p_term               # J x N
@@ -419,21 +406,20 @@ compute_inclusive_value_i1rt <-
 
 compute_inclusive_value_irt <- 
   function(
-    inclusive_value_i1rt,
-    rho
+    inclusive_value_i1rt
   ) {
     inclusive_value_irt <- 
       log(
         1 + 
           exp(
-            inclusive_value_i1rt / (1 - rho)
+            inclusive_value_i1rt
           )
       )
 
     return(inclusive_value_irt)  # 1 x N vector
   }
 
-compute_share_ijrt <- 
+compute_share_irt <- 
   function(
     u_irt,
     inclusive_value_i1rt,
@@ -460,39 +446,45 @@ compute_share_ijrt <-
         byrow = TRUE
       )  # J x N
 
-    s_ijrt <- within_group * across_group
+    s_irt <- within_group * across_group
 
-    return(s_ijrt)
+    return(s_irt)
   }
 
-compute_share_ijrt_wrapper <- 
+compute_share_irt_wrapper <- 
   function(
     x_rt,
-    p_rt,
+    price_rt,
     xi_rt,
     sigma_d,
     tau_d_t,
     d_rt,
     num_consumer,
-    parameter
+    alpha,
+    beta,
+    pi_alpha,
+    pi_beta,
+    rho
   ) {
     delta_rt <- 
       compute_delta_rt(
         x_rt = x_rt,
-        p_rt = p_rt,
+        price_rt = price_rt,
         xi_rt = xi_rt,
         sigma_d = sigma_d,
         tau_d_t = tau_d_t,
-        parameter = parameter
+        alpha = alpha,
+        beta = beta
       )
 
     mu_irt <- 
       compute_mu_irt(
         x_rt = x_rt,
-        p_rt = p_rt,
         d_rt = d_rt,
+        price_rt = price_rt,
         num_consumer = num_consumer,
-        parameter = parameter
+        pi_alpha = pi_alpha,
+        pi_beta = pi_beta
       )
 
     u_irt <- 
@@ -502,10 +494,8 @@ compute_share_ijrt_wrapper <-
         num_consumer = num_consumer
       )
 
-    rho <- parameter$demand$rho
-
     if (rho == 1) {
-      s_ijrt <- 
+      s_irt <- 
         exp(u_irt) / 
         matrix(
           1 +
@@ -515,121 +505,202 @@ compute_share_ijrt_wrapper <-
           byrow = TRUE
         )
     } else {
-      I_i1rt <- 
+      inclusive_i1rt <- 
         compute_inclusive_value_i1rt(
           u_irt = u_irt,
           rho = rho
         )
 
-      I_irt <- 
+      inclusive_irt <- 
         compute_inclusive_value_irt(
-          inclusive_value_i1rt = I_i1rt,
-          rho = rho
+          inclusive_value_i1rt = inclusive_i1rt
         )
 
-      s_ijrt <- 
-        compute_share_ijrt(
+      s_irt <- 
+        compute_share_irt(
           u_irt = u_irt,
-          inclusive_value_i1rt = I_i1rt,
-          inclusive_value_irt = I_irt,
+          inclusive_value_i1rt = inclusive_i1rt,
+          inclusive_value_irt = inclusive_irt,
           rho = rho
         )
     }
 
-    return(s_ijrt)
+    return(s_irt)
   }
 
-compute_market_share_jrt <- 
+compute_share_rt <- 
   function(
-    share_ijrt
+    share_irt
   ) {
-    share_jrt <- 
+    share_rt <- 
       rowMeans(
-        share_ijrt
-      )  # J x 1
+        share_irt
+      ) %>%
+      as.matrix()
 
-    return(share_jrt)
+    return(share_rt)
+  }
+
+compute_share_rt_wrapper <-
+  function(
+    x_rt,
+    price_rt,
+    xi_rt,
+    sigma_d,
+    tau_d_t,
+    d_rt,
+    num_consumer,
+    alpha,
+    beta,
+    pi_alpha,
+    pi_beta,
+    rho
+  ) {
+    s_irt <- 
+      compute_share_irt_wrapper(
+        x_rt = x_rt,
+        d_rt = d_rt,
+        price_rt = price_rt,
+        xi_rt = xi_rt,
+        sigma_d = sigma_d,
+        tau_d_t = tau_d_t,
+        num_consumer = num_consumer,
+        alpha = alpha,
+        beta = beta,
+        pi_alpha = pi_alpha,
+        pi_beta = pi_beta,
+        rho = rho
+      )
+    share_rt <- 
+      compute_share_rt(
+        share_irt = s_irt
+      )
+    return(share_rt)
   }
 
 adjust_owner_rt_with_kappa <- 
   function(
     owner_rt,
-    t,
-    constant,
-    parameter
+    kappa
   ) {
-    if (t > constant$num_period_before) {
-      kappa <- parameter$conduct$kappa
-
-      owner_rt[1, 2] <- kappa
-      owner_rt[2, 1] <- kappa
-
-      owner_rt[1, 3] <- kappa
-      owner_rt[3, 1] <- kappa
-    }
+    owner_rt[1, 2] <- kappa
+    owner_rt[2, 1] <- kappa
+    owner_rt[1, 3] <- kappa
+    owner_rt[3, 1] <- kappa
     return(owner_rt)
   }
 
-compute_jacobian_rt <- function(
-  s_ijrt,
-  d_rt,
-  parameter,
-  constant
-) {
-  J <- nrow(s_ijrt)
-  N <- ncol(s_ijrt)
-
-  alpha     <- parameter$demand$alpha
-  pi_alpha  <- parameter$demand$pi_alpha
-  rho       <- parameter$demand$rho
+compute_jacobian_rt <- 
+  function(
+    x_rt,
+    price_rt,
+    xi_rt,
+    sigma_d,
+    tau_d_t,
+    d_rt,
+    num_consumer,
+    alpha,
+    beta,
+    pi_alpha,
+    pi_beta,
+    rho
+  ) {
+  s_irt <- 
+    compute_share_rt_wrapper(
+      x_rt = x_rt,
+      price_rt = price_rt,
+      xi_rt = xi_rt,
+      sigma_d = sigma_d,
+      tau_d_t = tau_d_t,
+      d_rt = d_rt,
+      num_consumer = num_consumer,
+      alpha = alpha,
+      beta = beta,
+      pi_alpha = pi_alpha,
+      pi_beta = pi_beta,
+      rho = rho
+    )
+  J <- nrow(s_irt)
+  N <- ncol(s_irt)
 
   alpha_i <- 
-    alpha + 
-    pi_alpha * d_rt
-
-  alpha_mat <- 
+    as.vector(
+      alpha + pi_alpha * d_rt
+    )
+  s_i1 <- colSums(s_irt)
+  s_i0 <- 1 - s_i1
+  s_cond <- 
+    s_irt / 
     matrix(
-      alpha_i,
-      nrow = J,
-      ncol = N,
+      s_i1, 
+      nrow = J, 
+      ncol = N, 
       byrow = TRUE
     )
 
-  if (rho != 1) {
-    alpha_mat <- 
-      alpha_mat / (1 - rho)
-  }
+  inv_L <- 1 / (1 - rho)
 
-  jacobian <- 
+  jac <- 
     matrix(
-      0,
-      nrow = J,
-      ncol = J
+    0, 
+    J, 
+    J
     )
 
-  for (j in 1:J) {
-    s_j <- s_ijrt[j, ]
-
-    for (k in 1:J) {
-      s_k <- s_ijrt[k, ]
-
-      if (j == k) {
-        deriv_i <- 
-          alpha_mat[j, ] * 
-          s_j * (1 - s_j)
-      } else {
-        deriv_i <- 
-          - alpha_mat[j, ] * 
-          s_j * s_k
-      }
-
-      jacobian[j, k] <- 
-        mean(deriv_i)
+  for (j in 1: J) {
+    s_ij <- s_irt[j, ]
+    for (k in 1: J) {
+      deriv_i <-
+        alpha_i * s_ij *
+        ( ((j == k) - s_cond[k, ]) * inv_L +
+          s_i0 * s_cond[k, ])
+      jac[j, k] <- mean(deriv_i)
     }
   }
-
-  return(jacobian)
+  return(jac)
 }
+
+compute_jacobian_numerical_rt <-
+  function(
+    x_rt,
+    price_rt,
+    xi_rt,
+    sigma_d,
+    tau_d_t,
+    d_rt,
+    num_consumer,
+    alpha,
+    beta,
+    pi_alpha,
+    pi_beta,
+    rho
+  ) {
+    share_fun <- function(p_vec) {
+      s_irt <- compute_share_irt_wrapper(
+        x_rt = x_rt,
+        d_rt = d_rt,
+        price_rt = p_vec,
+        xi_rt = xi_rt,
+        sigma_d = sigma_d,
+        tau_d_t = tau_d_t,
+        num_consumer = num_consumer,
+        alpha = alpha,
+        beta = beta,
+        pi_alpha = pi_alpha,
+        pi_beta = pi_beta,
+        rho = rho
+      )
+      return(compute_share_rt(s_irt)[, 1])
+    }
+    return(
+      numDeriv::jacobian(
+      func = share_fun,
+      x = price_rt,
+      method = "Richardson"
+      )
+    )
+  }
+
 
 compute_marginal_cost_rt <- 
   function(
@@ -638,11 +709,8 @@ compute_marginal_cost_rt <-
     tau_s_t,
     mu_s_r,
     eta_rt,
-    parameter
+    gamma
   ) {
-    gamma <- 
-      parameter$cost$gamma
-
     mc_rt <- 
       w_rt * gamma + 
       sigma_s + 
@@ -653,7 +721,7 @@ compute_marginal_cost_rt <-
     return(mc_rt)
   }
 
-update_price_rt <-
+add_markup_rt <-
   function(
     x_rt,
     w_rt,
@@ -663,9 +731,12 @@ update_price_rt <-
     tau_s_t,
     mu_s_r,
     eta_rt,
-    s_ijrt,
-    parameter,
-    constant
+    share_rt,
+    jacobian_rt,
+    alpha,
+    pi_alpha,
+    rho,
+    gamma
   ) {
 
     mc_rt <-
@@ -675,69 +746,22 @@ update_price_rt <-
         tau_s_t = tau_s_t,
         mu_s_r = mu_s_r,
         eta_rt = eta_rt,
-        parameter = parameter
+        gamma = gamma
       )
 
-    jacobian_rt <-
-      compute_jacobian_rt(
-        s_ijrt = s_ijrt,
-        d_rt = d_rt,
-        parameter = parameter,
-        constant = constant
-      )
-    s_jrt <-
-      compute_market_share_jrt(
-        share_ijrt = s_ijrt
-      )
     markup <-
       - solve(
         owner_rt * t(jacobian_rt),
-        s_jrt
+        share_rt
       )
 
     price_rt <- mc_rt + markup
     return(price_rt)
   }
 
-initialize_endogenous_price <- 
-  function(
-    constant
-  ) {
-    price <- 
-      foreach (
-        t = seq_len(
-          constant$num_period_before + 
-          constant$num_period_after
-        )
-      ) %do% {
-        foreach (
-          r = seq_len(
-            constant$num_market
-          )
-        ) %do% {
-          matrix(
-            0,
-            nrow = constant$num_firm,
-            ncol = 1
-          )
-        }
-      }
-
-    return(
-      list(
-        price = price
-      )
-    )
-  }
-
-
 set_endogenous <- 
   function(
-    constant,
-    parameter,
-    exogenous,
-    shock,
-    endogenous
+    constant
   ) {
     share <-
       foreach (
@@ -752,29 +776,12 @@ set_endogenous <-
               constant$num_market
             )
           ) %do% {
-            x_rt <- exogenous$x[[t]][[r]]       # J x 1
-            p_rt <- endogenous$price[[t]][[r]]  # J x 1
-            xi_rt <- shock$demand$xi[[t]][[r]]  # J x 1
-            d_rt <- exogenous$d[[t]][[r]]            # scalar
-            sigma_d <- shock$demand$sigma_d   # already J x 1
-            tau_d_t <- shock$demand$tau_d[t]  # scalar
-
-            s_ijrt <- 
-              compute_share_ijrt_wrapper(
-                x_rt = x_rt,
-                p_rt = p_rt,
-                xi_rt = xi_rt,
-                sigma_d = sigma_d,
-                tau_d_t = tau_d_t,
-                d_rt = d_rt,
-                num_consumer = constant$num_consumer,
-                parameter = parameter
+            share_rt <-
+              matrix(
+                1 / (1 + constant$num_firm),
+                nrow = constant$num_firm,
+                ncol = 1
               )
-
-            share_rt <- compute_market_share_jrt(
-              share_ijrt = s_ijrt
-            )
-  
             return(share_rt)
           }
         return(share_t)
@@ -793,49 +800,11 @@ set_endogenous <-
               constant$num_market
             )
           ) %do% {
-            x_rt <- exogenous$x[[t]][[r]]   
-            p_rt <- endogenous$price[[t]][[r]]  # J x 1
-            xi_rt <- shock$demand$xi[[t]][[r]]  # J x 1
-            d_rt <- exogenous$d[[t]][[r]]            # scalar
-            sigma_d <- shock$demand$sigma_d   # already J x 1
-            tau_d_t <- shock$demand$tau_d[t]    # J x 1
-            w_rt <- exogenous$w[[t]][[r]]
-            sigma_s <- shock$cost$sigma_s
-            tau_s_t <- shock$cost$tau_s[t]
-            mu_s_r <- shock$cost$mu_s[r]
-            eta_rt <- shock$cost$eta[[t]][[r]]
-            owner_rt <- exogenous$owner[[t]][[r]]
-            owner_rt_adj <- 
-              adjust_owner_rt_with_kappa(
-                owner_rt = owner_rt,
-                t = t,
-                constant = constant,
-                parameter = parameter
-              )
-            s_ijrt <- 
-              compute_share_ijrt_wrapper(
-                x_rt = x_rt,
-                p_rt = p_rt,
-                xi_rt = xi_rt,
-                sigma_d = sigma_d,
-                tau_d_t = tau_d_t,
-                d_rt = d_rt,
-                num_consumer = constant$num_consumer,
-                parameter = parameter
-              )
             price_rt <-
-              update_price_rt(
-                x_rt = x_rt,
-                w_rt = w_rt,
-                d_rt = d_rt,
-                owner_rt = owner_rt_adj,
-                sigma_s = sigma_s,
-                tau_s_t = tau_s_t,
-                mu_s_r = mu_s_r,
-                eta_rt = eta_rt,
-                s_ijrt = s_ijrt,
-                parameter = parameter,
-                constant = constant
+              matrix(
+                0,
+                nrow = constant$num_firm,
+                ncol = 1
               )
             return(price_rt)
           }
@@ -846,6 +815,165 @@ set_endogenous <-
       list(
         share = share,
         price = price
+      )
+    )
+  }
+
+update_price_rt <-
+  function(
+    x_rt,
+    w_rt,
+    d_rt,
+    owner_rt,
+    price_rt,
+    xi_rt,
+    sigma_d,
+    tau_d_t,
+    sigma_s,
+    tau_s_t,
+    mu_s_r,
+    eta_rt,
+    num_consumer,
+    alpha,
+    beta,
+    pi_alpha,
+    pi_beta,
+    rho,
+    gamma
+  ) {
+    s_irt <- 
+      compute_share_irt_wrapper(
+        x_rt = x_rt,
+        d_rt = d_rt,
+        price_rt = price_rt,
+        xi_rt = xi_rt,
+        sigma_d = sigma_d,
+        tau_d_t = tau_d_t,
+        num_consumer = num_consumer,
+        alpha = alpha,
+        beta = beta,
+        pi_alpha = pi_alpha,
+        pi_beta = pi_beta,
+        rho = rho
+      )
+    jacobian_rt <-
+      compute_jacobian_rt(
+        x_rt = x_rt,
+        price_rt = price_rt,
+        xi_rt = xi_rt,
+        sigma_d = sigma_d,
+        tau_d_t = tau_d_t,
+        d_rt = d_rt,
+        num_consumer = num_consumer,
+        alpha = alpha,
+        beta = beta,
+        pi_alpha = pi_alpha,
+        pi_beta = pi_beta,
+        rho = rho
+      )
+    share_rt <-
+      compute_share_rt(
+        share_irt = s_irt
+      )
+    price_rt <-
+      add_markup_rt(
+        x_rt = x_rt,
+        w_rt = w_rt,
+        d_rt = d_rt,
+        owner_rt = owner_rt,
+        sigma_s = sigma_s,
+        tau_s_t = tau_s_t,
+        mu_s_r = mu_s_r,
+        eta_rt = eta_rt,
+        share_rt = share_rt,
+        jacobian_rt = jacobian_rt,
+        alpha = alpha,
+        pi_alpha = pi_alpha,
+        rho = rho,
+        gamma = gamma
+      )
+    return(price_rt)
+  }
+
+solve_endogenous_rt <-
+  function(
+    x_rt,
+    w_rt,
+    d_rt,
+    owner_rt,
+    price_rt,
+    xi_rt,
+    sigma_d,
+    tau_d_t,
+    sigma_s,
+    tau_s_t,
+    mu_s_r,
+    eta_rt,
+    num_consumer,
+    alpha,
+    beta,
+    pi_alpha,
+    pi_beta,
+    rho,
+    gamma
+  ) {
+    fn <-
+      function(
+        price_rt 
+      ) {
+        p_rt_new <-
+          update_price_rt(
+            x_rt = x_rt,
+            w_rt = w_rt,
+            d_rt = d_rt,
+            owner_rt = owner_rt,
+            price_rt = price_rt,
+            xi_rt = xi_rt,
+            sigma_d = sigma_d,
+            tau_d_t = tau_d_t,
+            sigma_s = sigma_s,
+            tau_s_t = tau_s_t,
+            mu_s_r = mu_s_r,
+            eta_rt = eta_rt,
+            num_consumer = num_consumer,
+            alpha = alpha,
+            beta = beta,
+            pi_alpha = pi_alpha,
+            pi_beta = pi_beta,
+            rho = rho,
+            gamma = gamma
+          )
+        return(
+          price_rt - p_rt_new
+        )
+      }
+    solution <-
+      nleqslv::nleqslv(
+        x = price_rt,
+        fn = fn
+      )
+    price_rt <- 
+      solution$x %>%
+      as.matrix()
+    share_rt <-
+      compute_share_rt_wrapper(
+        x_rt = x_rt,
+        d_rt = d_rt,
+        price_rt = price_rt,
+        xi_rt = xi_rt,
+        sigma_d = sigma_d,
+        tau_d_t = tau_d_t,
+        num_consumer = num_consumer,
+        alpha = alpha,
+        beta = beta,
+        pi_alpha = pi_alpha,
+        pi_beta = pi_beta,
+        rho = rho
+      )
+    return(
+      list(
+        share_rt = share_rt,
+        price_rt = price_rt
       )
     )
   }
@@ -878,64 +1006,94 @@ set_equilibrium <-
     # set endogenous variable ------------------------------------------------------
 
     endogenous <- 
-      initialize_endogenous_price(
+      set_endogenous(
         constant = constant
       )
 
-    distance <- 10000
-    iter <- 0
-
-    while (distance > lambda && iter < max_iter) {
-
-      endogenous_new <- 
-        set_endogenous(
-          constant = constant,
-          parameter = parameter,
-          exogenous = exogenous,
-          shock = shock,
-          endogenous = endogenous
-        )
-      p_old <- endogenous$price
-      p_new <- endogenous_new$price
-
-      distance <- 
-        max(
-          unlist(
-            lapply(
-              seq_along(p_new),
-              function(t) {
-                unlist(
-                  lapply(
-                    seq_along(p_new[[t]]),
-                    function(r) {
-                      abs(
-                        p_new[[t]][[r]] - 
-                        p_old[[t]][[r]]
-                      )
-                    }
-                  )
-                )
-              }
-            )
-          )
-        )
-
-      print(distance)
-      iter <- iter + 1
-      endogenous <- endogenous_new
-    }
-
-    if (iter == max_iter) {
-      warning("Equilibrium did not converge after max_iter.")
-    }
-
     return(
       list(
+        constant = constant,
         parameter = parameter,
         exogenous = exogenous,
         shock = shock,
         endogenous = endogenous
       )
+    )
+  }
+
+solve_equilibrium <- 
+  function(
+    equilibrium
+  ) {
+
+    endogenous <-
+      foreach (
+        t = seq_along(
+          equilibrium$exogenous$x
+        )
+      ) %do% {
+        endogenous_t <-
+          foreach (
+            r = seq_along(
+              equilibrium$exogenous$x[[t]]
+            )
+          ) %do% {
+            if (
+              t > equilibrium$constant$num_period_before
+            ) {
+              owner_rt <- 
+                adjust_owner_rt_with_kappa(
+                  owner_rt = equilibrium$exogenous$owner[[t]][[r]],
+                  kappa = equilibrium$parameter$conduct$kappa
+                )
+            } else {
+              owner_rt <- equilibrium$exogenous$owner[[t]][[r]]
+            }
+            endogenous_rt <- 
+              solve_endogenous_rt(
+                x_rt = equilibrium$exogenous$x[[t]][[r]],
+                w_rt = equilibrium$exogenous$w[[t]][[r]],
+                d_rt = equilibrium$exogenous$d[[t]][[r]],
+                owner_rt = owner_rt,
+                price_rt = equilibrium$endogenous$p[[t]][[r]],
+                xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
+                sigma_d = equilibrium$shock$demand$sigma_d,
+                tau_d_t = equilibrium$shock$demand$tau_d[[t]],
+                sigma_s = equilibrium$shock$cost$sigma_s,
+                tau_s_t = equilibrium$shock$cost$tau_s[[t]],
+                mu_s_r = equilibrium$shock$cost$mu_s[[r]],
+                eta_rt = equilibrium$shock$cost$eta[[t]][[r]],
+                num_consumer = equilibrium$constant$num_consumer,
+                alpha = equilibrium$parameter$demand$alpha,
+                beta = equilibrium$parameter$demand$beta,
+                pi_alpha = equilibrium$parameter$demand$pi_alpha,
+                pi_beta = equilibrium$parameter$demand$pi_beta,
+                rho = equilibrium$parameter$demand$rho,
+                gamma = equilibrium$parameter$cost$gamma
+              ) 
+            return(endogenous_rt)
+          }
+        return(endogenous_t)
+      }
+
+    for (
+      t in seq_along(
+        equilibrium$exogenous$x
+      )
+    ) {
+      for (
+        r in seq_along(
+          equilibrium$exogenous$x[[t]]
+        )
+      ) {
+        equilibrium$endogenous$share[[t]][[r]] <-
+          endogenous[[t]][[r]]$share_rt
+        equilibrium$endogenous$price[[t]][[r]] <-
+          endogenous[[t]][[r]]$price_rt
+      }
+    }
+    return(
+      equilibrium
     )
   }
 
