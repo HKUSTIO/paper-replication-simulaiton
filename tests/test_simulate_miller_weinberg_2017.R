@@ -189,40 +189,41 @@ share_rt
 
 jacobian_rt <- 
   compute_jacobian_rt(
-    s_irt = s_irt_wrapped,
+    x_rt = equilibrium$exogenous$x[[t]][[r]],
     d_rt = equilibrium$exogenous$d[[t]][[r]],
+    price_rt = equilibrium$endogenous$p[[t]][[r]],
+    xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
+    sigma_d = equilibrium$shock$demand$sigma_d,
+    tau_d_t = equilibrium$shock$demand$tau_d[[t]],
+    num_consumer = constant$num_consumer,
     alpha = equilibrium$parameter$demand$alpha,
+    beta = equilibrium$parameter$demand$beta,
     pi_alpha = equilibrium$parameter$demand$pi_alpha,
+    pi_beta = equilibrium$parameter$demand$pi_beta,
     rho = equilibrium$parameter$demand$rho
   )
 # Define a function to numerically calculate the derivatives
-share_rt_fun <- 
-  function(price_rt) {
-    s_irt <- compute_share_irt_wrapper(
-      x_rt = equilibrium$exogenous$x[[t]][[r]],
-      d_rt = equilibrium$exogenous$d[[t]][[r]],
-      price_rt = price_rt,
-      xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
-      sigma_d = equilibrium$shock$demand$sigma_d,
-      tau_d_t = equilibrium$shock$demand$tau_d[[t]],
-      num_consumer = constant$num_consumer,
-      alpha = equilibrium$parameter$demand$alpha,
-      beta = equilibrium$parameter$demand$beta,
-      pi_alpha = equilibrium$parameter$demand$pi_alpha,
-      pi_beta = equilibrium$parameter$demand$pi_beta,
-      rho = equilibrium$parameter$demand$rho
-    )
-    compute_share_rt(s_irt)[, 1]
-  }
-
-jacobian_rt_numerical <-
-  numDeriv::jacobian(
-    func = share_rt_fun,
-    x = equilibrium$endogenous$p[[t]][[r]],
-    method = "complex",
+jacobian_rt_numerical <- 
+  compute_jacobian_numerical_rt(
+    x_rt = equilibrium$exogenous$x[[t]][[r]],
+    d_rt = equilibrium$exogenous$d[[t]][[r]],
+    price_rt = equilibrium$endogenous$p[[t]][[r]],
+    xi_rt = equilibrium$shock$demand$xi[[t]][[r]],
+    sigma_d = equilibrium$shock$demand$sigma_d,
+    tau_d_t = equilibrium$shock$demand$tau_d[[t]],
+    num_consumer = constant$num_consumer,
+    alpha = equilibrium$parameter$demand$alpha,
+    beta = equilibrium$parameter$demand$beta,
+    pi_alpha = equilibrium$parameter$demand$pi_alpha,
+    pi_beta = equilibrium$parameter$demand$pi_beta,
+    rho = equilibrium$parameter$demand$rho
   )
+
 findGlobals(
   compute_jacobian_rt
+)
+findGlobals(
+  compute_jacobian_numerical_rt
 )
 jacobian_rt
 jacobian_rt_numerical
@@ -237,57 +238,36 @@ jac_long <-
       rr = seq_along(equilibrium$exogenous$x[[tt]]),
       .combine = "rbind"
     ) %do% {
-
-      s_irt_wrapped <-
-        compute_share_irt_wrapper(
-          x_rt         = equilibrium$exogenous$x[[tt]][[rr]],
-          d_rt         = equilibrium$exogenous$d[[tt]][[rr]],
-          price_rt     = equilibrium$endogenous$price[[tt]][[rr]],
-          xi_rt        = equilibrium$shock$demand$xi[[tt]][[rr]],
-          sigma_d      = equilibrium$shock$demand$sigma_d,
-          tau_d_t      = equilibrium$shock$demand$tau_d[[tt]],
-          num_consumer = constant$num_consumer,
-          alpha        = equilibrium$parameter$demand$alpha,
-          beta         = equilibrium$parameter$demand$beta,
-          pi_alpha     = equilibrium$parameter$demand$pi_alpha,
-          pi_beta      = equilibrium$parameter$demand$pi_beta,
-          rho          = equilibrium$parameter$demand$rho
-        )
-
       jac_ana <-
         compute_jacobian_rt(
-          s_irt    = s_irt_wrapped,
-          d_rt     = equilibrium$exogenous$d[[tt]][[rr]],
-          alpha    = equilibrium$parameter$demand$alpha,
+          x_rt = equilibrium$exogenous$x[[tt]][[rr]],
+          d_rt = equilibrium$exogenous$d[[tt]][[rr]],
+          price_rt = equilibrium$endogenous$p[[tt]][[rr]],
+          xi_rt = equilibrium$shock$demand$xi[[tt]][[rr]],
+          sigma_d = equilibrium$shock$demand$sigma_d,
+          tau_d_t = equilibrium$shock$demand$tau_d[[tt]],
+          num_consumer = constant$num_consumer,
+          alpha = equilibrium$parameter$demand$alpha,
+          beta = equilibrium$parameter$demand$beta,
           pi_alpha = equilibrium$parameter$demand$pi_alpha,
-          rho      = equilibrium$parameter$demand$rho
+          pi_beta = equilibrium$parameter$demand$pi_beta,
+          rho = equilibrium$parameter$demand$rho
         )
 
-      share_fun <-
-        function(price_vec) {
-          s_irt <-
-            compute_share_irt_wrapper(
-              x_rt         = equilibrium$exogenous$x[[tt]][[rr]],
-              d_rt         = equilibrium$exogenous$d[[tt]][[rr]],
-              price_rt     = price_vec,
-              xi_rt        = equilibrium$shock$demand$xi[[tt]][[rr]],
-              sigma_d      = equilibrium$shock$demand$sigma_d,
-              tau_d_t      = equilibrium$shock$demand$tau_d[[tt]],
-              num_consumer = constant$num_consumer,
-              alpha        = equilibrium$parameter$demand$alpha,
-              beta         = equilibrium$parameter$demand$beta,
-              pi_alpha     = equilibrium$parameter$demand$pi_alpha,
-              pi_beta      = equilibrium$parameter$demand$pi_beta,
-              rho          = equilibrium$parameter$demand$rho
-            )
-          compute_share_rt(s_irt)[, 1]
-        }
-
       jac_num <-
-        numDeriv::jacobian(
-          func   = share_fun,
-          x      = equilibrium$endogenous$price[[tt]][[rr]],
-          method = "Richardson"
+        compute_jacobian_numerical_rt(
+          x_rt = equilibrium$exogenous$x[[tt]][[rr]],
+          d_rt = equilibrium$exogenous$d[[tt]][[rr]],
+          price_rt = equilibrium$endogenous$p[[tt]][[rr]],
+          xi_rt = equilibrium$shock$demand$xi[[tt]][[rr]],
+          sigma_d = equilibrium$shock$demand$sigma_d,
+          tau_d_t = equilibrium$shock$demand$tau_d[[tt]],
+          num_consumer = constant$num_consumer,
+          alpha = equilibrium$parameter$demand$alpha,
+          beta = equilibrium$parameter$demand$beta,
+          pi_alpha = equilibrium$parameter$demand$pi_alpha,
+          pi_beta = equilibrium$parameter$demand$pi_beta,
+          rho = equilibrium$parameter$demand$rho
         )
 
       data.frame(

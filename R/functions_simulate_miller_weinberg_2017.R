@@ -592,12 +592,34 @@ adjust_owner_rt_with_kappa <-
 
 compute_jacobian_rt <- 
   function(
-    s_irt,
+    x_rt,
+    price_rt,
+    xi_rt,
+    sigma_d,
+    tau_d_t,
     d_rt,
+    num_consumer,
     alpha,
+    beta,
     pi_alpha,
+    pi_beta,
     rho
   ) {
+  s_irt <- 
+    compute_share_rt_wrapper(
+      x_rt = x_rt,
+      price_rt = price_rt,
+      xi_rt = xi_rt,
+      sigma_d = sigma_d,
+      tau_d_t = tau_d_t,
+      d_rt = d_rt,
+      num_consumer = num_consumer,
+      alpha = alpha,
+      beta = beta,
+      pi_alpha = pi_alpha,
+      pi_beta = pi_beta,
+      rho = rho
+    )
   J <- nrow(s_irt)
   N <- ncol(s_irt)
 
@@ -635,8 +657,50 @@ compute_jacobian_rt <-
       jac[j, k] <- mean(deriv_i)
     }
   }
-  jac
+  return(jac)
 }
+
+compute_jacobian_numerical_rt <-
+  function(
+    x_rt,
+    price_rt,
+    xi_rt,
+    sigma_d,
+    tau_d_t,
+    d_rt,
+    num_consumer,
+    alpha,
+    beta,
+    pi_alpha,
+    pi_beta,
+    rho
+  ) {
+    share_fun <- function(p_vec) {
+      s_irt <- compute_share_irt_wrapper(
+        x_rt = x_rt,
+        d_rt = d_rt,
+        price_rt = p_vec,
+        xi_rt = xi_rt,
+        sigma_d = sigma_d,
+        tau_d_t = tau_d_t,
+        num_consumer = num_consumer,
+        alpha = alpha,
+        beta = beta,
+        pi_alpha = pi_alpha,
+        pi_beta = pi_beta,
+        rho = rho
+      )
+      return(compute_share_rt(s_irt)[, 1])
+    }
+    return(
+      numDeriv::jacobian(
+      func = share_fun,
+      x = price_rt,
+      method = "Richardson"
+      )
+    )
+  }
+
 
 compute_marginal_cost_rt <- 
   function(
@@ -794,10 +858,17 @@ update_price_rt <-
       )
     jacobian_rt <-
       compute_jacobian_rt(
-        s_irt = s_irt,
+        x_rt = x_rt,
+        price_rt = price_rt,
+        xi_rt = xi_rt,
+        sigma_d = sigma_d,
+        tau_d_t = tau_d_t,
         d_rt = d_rt,
+        num_consumer = num_consumer,
         alpha = alpha,
+        beta = beta,
         pi_alpha = pi_alpha,
+        pi_beta = pi_beta,
         rho = rho
       )
     share_rt <-
